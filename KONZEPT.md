@@ -32,8 +32,11 @@ Was dann passiert:
 | **iPhone älter als XS / NFC aus** | QR-Code auf demselben Aufkleber als Rückfallebene. Kamera auf, fertig. |
 
 Damit ist der Grundablauf auf **allen** Handys derselbe und braucht null Schulung. Android
-bekommt oben drauf einen Turbo fürs Massenabfertigen im Lager, iPhone verliert nichts
-Wesentliches.
+bekommt oben drauf einen Turbo fürs Massenabfertigen im Lager.
+
+Ehrlich dazugesagt: Auf dem iPhone sind es pro Einheit drei Interaktionen (Banner antippen,
+Seite lädt, Knopf), auf Android eine. Bei einzelnen Teilen auf der Baustelle ist das egal,
+beim Ausladen eines vollen LKW nicht. Was dagegen hilft, steht in **Abschnitt 3a**.
 
 Jeder Tag bekommt zusätzlich **beides**: NFC-Chip und aufgedruckten QR + Klartext-Code
 (`K7F2QX`). Wenn der Chip mal hin ist, tippt man sechs Zeichen ein. Nie eine Sackgasse.
@@ -131,6 +134,56 @@ Tippt jemand ohne Berechtigung den Tag an, sieht er keine Buchungsknöpfe, sonde
 > Gefunden? Bitte melden.
 
 Kostet nichts und holt gelegentlich Material zurück.
+
+---
+
+## 3a. Massenscannen auf dem iPhone — drei Wege
+
+Native iOS-Apps **können** NFC lesen; CoreNFC gibt es seit iOS 11. Die Einschränkung aus
+Abschnitt 1 gilt ausschließlich dem Browser. Für den Ablauf beim Be- und Entladen, wo 40
+Einheiten am Stück durchlaufen, gibt es damit drei Möglichkeiten:
+
+### Weg A — Banner-Weg, so wie oben (Empfehlung für den Start)
+Keine Installation, keine Kosten, funktioniert am Tag der Inbetriebnahme auf jedem Handy.
+Für einzelne Einheiten draußen völlig ausreichend. Für den vollen LKW zäh.
+
+### Weg B — ein Android-Gerät als Scan-Station im Lager
+Massenscannen passiert fast immer am selben Ort: im Lager beim Beladen. Draußen sind es pro
+Baustelle eine Handvoll Einheiten. Ein einfaches Android-Handy oder -Tablet, das im Lager
+liegt, löst damit das Mengenproblem vollständig — mit Web-NFC-Dauerscan, Tag an Tag an Tag.
+
+**Kosten: 150–200 € einmalig.** Kein Apple-Konto, kein Rollout, keine App auf 20 Geräten.
+Die iPhones draußen machen weiter Weg A. Preis-Leistungs-Sieger und der Grund, warum die
+App-Frage warten kann.
+
+### Weg C — eigene App per Capacitor
+Capacitor wickelt **genau dieselbe Web-App** ein, die der Worker ausliefert. Kein zweites
+Frontend, kein Rewrite — dieselbe Codebasis plus NFC-Plugin (z. B. Capawesome, deckt iOS,
+Android und Web mit einer API ab).
+
+Ablauf auf dem iPhone dann: App auf → „Scannen" → Apples System-Dialog erscheint → Tag für
+Tag antippen. Mit `invalidateAfterFirstRead: false` liest eine Sitzung **beliebig viele Tags
+am Stück, bis zum 60-Sekunden-Limit**. Für 40 Gitterboxen ist das ein anderer Tag.
+
+Der Aufwand liegt nicht in der Entwicklung, sondern in der Verteilung:
+
+- 99 €/Jahr Apple Developer Program
+- Verteilung über App Store oder Apple Business Manager — TestFlight scheidet aus,
+  Builds laufen nach 90 Tagen ab
+- Installation und Pflege auf jedem Diensthandy
+- Jedes Update geht durch die Review
+
+### Warum das jetzt nicht entschieden werden muss
+
+Tag-Inhalt, Datenmodell, Worker, Datenbank und MCP sind in allen drei Wegen **identisch**.
+Die App wäre später ein zusätzliches Frontend auf denselben API-Endpunkten, kein Umbau. Es
+geht also nichts verloren, wenn wir mit A + B starten und C erst bauen, falls die Kolonnen
+im Praxistest sagen, dass es nervt.
+
+**Für das Beschreiben der Tags** nutzen wir ohnehin eine fertige App (NFC Tools, NXP
+TagWriter) — 500 Tags einmal programmieren und schreibschützen. Dafür sind die gut, für den
+Tagesablauf nicht: sie lesen den Tag und zeigen die URL, die man dann noch antippen muss.
+Das sind mehr Schritte als das Banner von selbst.
 
 ---
 
@@ -266,11 +319,17 @@ Rahmen 2 m sind frei"* und bekommt die Antwort, ohne irgendeine Oberfläche zu �
 
 **Phase 1 — nutzbar (ca. 2 Wochen)**
 Tag-Schema und URL-Struktur · Scan-Seite mit zwei Knöpfen · Standortliste nach Entfernung ·
-Bestandsübersicht fürs Büro · MCP lesend · 20 Muster-Tags an einer Kolonne testen
+Bestandsübersicht fürs Büro · MCP lesend · 20 Muster-Tags an einer Kolonne testen ·
+ein Android-Gerät als Scan-Station im Lager (Weg B)
 
 **Phase 2 — schnell**
 Baustellen-Session-Tag · Offline-Queue · Inhaltsverwaltung für Träger · Überfällig-Liste
 wöchentlich · MCP schreibend
+
+**Phase 2a — nur falls der Praxistest es verlangt**
+Capacitor-Wrapper (Weg C) für die iPhone-Kolonnen. Entscheidung erst nach Phase 1, auf Basis
+echter Rückmeldung statt Vermutung. Zusatzaufwand: Apple Developer Program und Verteilweg
+klären — das ist der eigentliche Posten, nicht der Code.
 
 **Phase 3 — auswertbar**
 Vorhaltungsauswertung für die Abrechnung · Inventurmodus · Foto beim Rückscan
@@ -296,3 +355,6 @@ merkt man nur draußen, nicht am Schreibtisch.
    `j-werner-geruestbau.de`. Steht als Klartext unter dem QR, sollte kurz sein.
 6. **Sind auch Subunternehmer/Fremdkolonnen** im Spiel? Wenn ja, brauchen die Tokens mit
    eingeschränkten Rechten.
+7. **Wo passiert das Massenscannen wirklich?** Wenn fast nur im Lager, reicht Weg B und die
+   App-Frage erledigt sich. Wenn Kolonnen auch draußen regelmäßig 30+ Einheiten am Stück
+   buchen, wird Weg C relevant. Das ist die einzige Frage, die den Zuschnitt noch verändert.
