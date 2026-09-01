@@ -51,15 +51,13 @@ const bu = { name: bueroCookie.name, value: bueroCookie.value };
 const ma = { name: maCookie.name, value: maCookie.value };
 const handy = { width: 390, height: 844 };
 
-await schuss('buero-uebersicht',      '/buero',            { cookie: bu });
-await schuss('buero-uebersicht-dark', '/buero',            { cookie: bu, dark: true });
-await schuss('buero-einheiten',       '/buero/einheiten',  { cookie: bu });
-await schuss('buero-bestand',         '/buero/bestand',    { cookie: bu });
-await schuss('buero-auswertung',      '/buero/auswertung', { cookie: bu });
-await schuss('buero-meldungen',       '/buero/meldungen',  { cookie: bu });
-await schuss('buero-standorte',       '/buero/standorte',  { cookie: bu });
-await schuss('buero-einheit',         '/buero/einheit/4',  { cookie: bu });
-await schuss('buero-mobil',           '/buero',            { cookie: bu, viewport: handy });
+await schuss('buero-uebersicht',      '/buero',                  { cookie: bu });
+await schuss('buero-uebersicht-dark', '/buero',                  { cookie: bu, dark: true });
+await schuss('buero-lager',           '/buero/lager',            { cookie: bu });
+await schuss('buero-lager-artikel',   '/buero/lager?sicht=artikel', { cookie: bu });
+await schuss('buero-einstellungen',   '/buero/einstellungen',    { cookie: bu });
+await schuss('buero-einheit',         '/buero/einheit/4',        { cookie: bu });
+await schuss('buero-mobil',           '/buero',                  { cookie: bu, viewport: handy });
 
 await schuss('scan-einheit',          '/t/W2XKFG',  { cookie: ma, viewport: handy });
 await schuss('scan-einheit-dark',     '/t/W2XKFG',  { cookie: ma, viewport: handy, dark: true });

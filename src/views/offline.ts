@@ -189,7 +189,7 @@ ${notiz('hinweis', 'Kein Netz',
   function esc(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
   if (!e) {
-    ziel.innerHTML = '<article class="tafel"><span class="kennung">' + esc(code) + '</span>' +
+    ziel.innerHTML = '<article class="blatt"><span class="kennung">' + esc(code) + '</span>' +
       '<p style="margin-top:14px">Zu diesem Tag liegen keine Daten auf dem Handy. ' +
       'Sobald wieder Empfang da ist, die Seite neu laden.</p></article>';
     return;
@@ -202,7 +202,7 @@ ${notiz('hinweis', 'Kein Netz',
       : '<li><span class="was">' + esc(z) + '</span></li>';
   }).join('') + '</ul>' : '';
 
-  ziel.innerHTML = '<article class="tafel tafel-akzent">' +
+  ziel.innerHTML = '<article class="blatt">' +
     '<span class="kennung">' + esc(e.c) + '</span>' +
     '<h1 class="titel-gross">' + esc(e.b) + '</h1>' + inhalt +
     '<div class="standzeit"><span class="wo">' + esc(e.sn || '') + '</span>' +

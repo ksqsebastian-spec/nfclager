@@ -16,6 +16,7 @@ import {
 import { entfernungKm } from './geo';
 import { mcpBehandeln, toolsJson } from './mcp';
 import { esc, html, kopf, notiz, seite } from './views/layout';
+import { NAME } from './views/marke';
 import {
   aktionenFuer, einheitSeite, fremdSeite, inventurAktion, meldenSeite, sitzungsBanner,
   unbekannterTag, wohinSeite,
@@ -38,9 +39,9 @@ app.get('/', async (c) => {
   if (!ma) {
     if (await istBuero(c.req.raw, c.env)) return c.redirect('/buero');
     return html(seite(`
-<article class="tafel tafel-akzent">
+<article class="blatt">
   <h1>${esc(c.env.FIRMA)}</h1>
-  <p class="gedaempft" style="margin-top:6px">Lagerverwaltung</p>
+  <p class="still" style="margin-top:6px">Lagerverwaltung</p>
 </article>
 ${notiz('hinweis', 'Dieses Handy ist noch nicht eingerichtet',
         ' Der Einladungslink kommt vom Büro — einmal antippen genügt.')}
@@ -52,9 +53,9 @@ ${notiz('hinweis', 'Dieses Handy ist noch nicht eingerichtet',
   const lager = await hauptlager(c.env);
   return html(seite(`
 <h1>Hallo ${esc(ma.name)}</h1>
-<p class="gedaempft">Tag ans Handy halten, um zu buchen.</p>
+<p class="still">Tag ans Handy halten, um zu buchen.</p>
 <form method="get" action="/t">
-  <div class="tafel">
+  <div class="blatt">
     <div class="feld" style="margin-bottom:0">
       <label for="code">Oder Code vom Aufkleber eintippen</label>
       <input type="text" id="code" name="code" autocapitalize="characters"
@@ -63,11 +64,14 @@ ${notiz('hinweis', 'Dieses Handy ist noch nicht eingerichtet',
   <button class="knopf knopf-lager" type="submit">Öffnen</button>
 </form>
 <a class="knopf knopf-zweit" href="/inventur">Inventur</a>
-<a class="knopf knopf-still" href="/scan">Scan-Station (nur Android)</a>
+<a class="knopf knopf-zweit" href="/scan" id="dauerscan" hidden>Dauerscan</a>
 <p class="fussnote" id="wgl-wartestand" hidden></p>
 ${lager ? `<p class="fussnote">Hauptlager: ${esc(lager.name)}</p>` : ''}`,
-    { titel: 'Lager', kopf: kopf(), banner: sitzungsBanner(sitzung),
-      scripte: '<script src="/app.js"></script>' }));
+    { titel: NAME, kopf: kopf(), banner: sitzungsBanner(sitzung),
+      // Der Dauerscan taucht nur auf Geräten auf, die ihn können — auf dem
+      // iPhone wäre er ein Knopf, der nichts tut.
+      scripte: '<script src="/app.js"></script>' +
+        `<script>if('NDEFReader' in window)document.getElementById('dauerscan').hidden=false;</script>` }));
 });
 
 app.get('/t', (c) => {
@@ -90,7 +94,7 @@ app.get('/t/:code', async (c) => {
     return html(seite(`
 ${notiz('erfolg', `Du bist auf ${ziel.standort.name}`,
       ' Die nächsten 4 Stunden geht jede Einheit mit einem Tap hierher.')}
-<p class="gedaempft">Jetzt die Einheiten antippen.</p>
+<p class="still">Jetzt die Einheiten antippen.</p>
 <a class="knopf knopf-still" href="/">Übersicht</a>`, {
       titel: ziel.standort.name,
       kopf: kopf(),
@@ -485,16 +489,14 @@ app.get('/buero', async (c) => {
        FROM einheit e JOIN standort s ON s.id = e.standort_id WHERE e.aktiv = 1`,
   ).first<{ gesamt: number; im_lager: number; auf_baustellen: number }>();
   const standorte = await standorteAktiv(c.env);
-  const offene = await c.env.DB.prepare(
-    `SELECT COUNT(*) AS n FROM meldung WHERE erledigt = 0`,
-  ).first<{ n: number }>();
   return B.uebersicht({
     einheiten: zahlen?.gesamt ?? 0,
     imLager: zahlen?.im_lager ?? 0,
     aufBaustellen: zahlen?.auf_baustellen ?? 0,
+    standorte: standorte.filter((s) => s.typ === 'baustelle').length,
     ueberfaellig: await ueberfaellig(c.env),
-    standorte: standorte.length,
-    offeneMeldungen: offene?.n ?? 0,
+    meldungen: await meldungen(c.env, true),
+    vorhaltung: await vorhaltung(c.env),
   });
 });
 
@@ -518,36 +520,37 @@ app.get('/buero/abmelden', () =>
     headers: { Location: '/', 'Set-Cookie': cookieLoeschen(COOKIE_BUERO) },
   }));
 
-app.get('/buero/bestand', async (c) => {
+app.get('/buero/lager', async (c) => {
   const q = c.req.query('q') ?? '';
-  return B.bestandSeite(await bestand(c.env, { artikelSuche: q || undefined }), q);
-});
-
-app.get('/buero/einheiten', async (c) => {
-  const q = c.req.query('q') ?? '';
+  const sicht = c.req.query('sicht') === 'artikel' ? 'artikel' : 'einheiten';
   const muster = `%${q}%`;
-  const { results } = await c.env.DB.prepare(
+  const { results: einheiten } = await c.env.DB.prepare(
     `SELECT e.*, s.name AS standort_name, s.typ AS standort_typ
        FROM einheit e JOIN standort s ON s.id = e.standort_id
       WHERE e.aktiv = 1 AND (?1 = '' OR e.code LIKE ?2 OR e.bezeichnung LIKE ?2)
       ORDER BY e.code LIMIT 300`,
   ).bind(q, muster).all<EinheitMitStandort>();
-  return B.einheitenSeite(results, await standorteAktiv(c.env), q);
+  return B.lagerSeite({
+    sicht,
+    einheiten,
+    bestand: await bestand(c.env, { artikelSuche: q || undefined }),
+    standorte: await standorteAktiv(c.env),
+    filter: q,
+  });
 });
 
-app.post('/buero/einheiten', async (c) => {
+app.post('/buero/lager', async (c) => {
   const d = await eingabeLesen(c.req.raw);
   const code = String(d.code ?? '').trim();
   const bezeichnung = String(d.bezeichnung ?? '').trim();
   const typ = d.typ === 'einzelteil' ? 'einzelteil' : 'traeger';
   const standortId = Number(d.standort_id);
-  if (!code || !bezeichnung || !Number.isInteger(standortId)) return c.redirect('/buero/einheiten');
+  if (!code || !bezeichnung || !Number.isInteger(standortId)) return c.redirect('/buero/lager', 303);
 
   const neu = await c.env.DB.prepare(
-    `INSERT INTO einheit (code, typ, bezeichnung, standort_id) VALUES (?, ?, ?, ?)
-     RETURNING id`,
+    `INSERT INTO einheit (code, typ, bezeichnung, standort_id) VALUES (?, ?, ?, ?) RETURNING id`,
   ).bind(code, typ, bezeichnung, standortId).first<{ id: number }>();
-  if (!neu) return c.redirect('/buero/einheiten');
+  if (!neu) return c.redirect('/buero/lager', 303);
 
   await tagAnlegen(c.env, 'einheit', neu.id);
   await c.env.DB.prepare(
@@ -556,6 +559,14 @@ app.post('/buero/einheiten', async (c) => {
   ).bind(neu.id, standortId).run();
   return c.redirect(`/buero/einheit/${neu.id}`, 303);
 });
+
+// Alte Lesezeichen sollen nicht ins Leere laufen.
+app.get('/buero/bestand', (c) => c.redirect('/buero/lager?sicht=artikel', 301));
+app.get('/buero/einheiten', (c) => c.redirect('/buero/lager', 301));
+app.get('/buero/meldungen', (c) => c.redirect('/buero', 301));
+app.get('/buero/standorte', (c) => c.redirect('/buero/einstellungen', 301));
+app.get('/buero/artikel', (c) => c.redirect('/buero/einstellungen', 301));
+app.get('/buero/mitarbeiter', (c) => c.redirect('/buero/einstellungen', 301));
 
 app.get('/buero/einheit/:id', async (c) => {
   const id = Number(c.req.param('id'));
@@ -599,17 +610,10 @@ app.post('/buero/einheit/:id/tag', async (c) => {
   return c.redirect(`/buero/einheit/${id}`, 303);
 });
 
-app.get('/buero/standorte', async (c) => {
-  const { results } = await c.env.DB.prepare(
-    `SELECT * FROM standort ORDER BY aktiv DESC, typ, name`,
-  ).all<Standort>();
-  return B.standorteSeite(results);
-});
-
 app.post('/buero/standorte', async (c) => {
   const d = await eingabeLesen(c.req.raw);
   const name = String(d.name ?? '').trim();
-  if (!name) return c.redirect('/buero/standorte', 303);
+  if (!name) return c.redirect('/buero/einstellungen', 303);
   const typ = d.typ === 'lager' ? 'lager' : 'baustelle';
   const neu = await c.env.DB.prepare(
     `INSERT INTO standort (name, typ, adresse, lat, lon) VALUES (?, ?, ?, ?, ?)
@@ -619,22 +623,14 @@ app.post('/buero/standorte', async (c) => {
     zahlOderNull(d.lat), zahlOderNull(d.lon),
   ).first<{ id: number }>();
   if (neu) await tagAnlegen(c.env, 'standort', neu.id);
-  return c.redirect('/buero/standorte', 303);
+  return c.redirect('/buero/einstellungen', 303);
 });
 
 app.post('/buero/standorte/:id/beenden', async (c) => {
   await c.env.DB.prepare(
     `UPDATE standort SET aktiv = 0, beendet_am = datetime('now') WHERE id = ? AND typ = 'baustelle'`,
   ).bind(Number(c.req.param('id'))).run();
-  return c.redirect('/buero/standorte', 303);
-});
-
-app.get('/buero/mitarbeiter', async (c) => {
-  const { results } = await c.env.DB.prepare(
-    `SELECT id, name, rolle, aktiv, einladung, token_hash, zuletzt_aktiv
-       FROM mitarbeiter ORDER BY aktiv DESC, name`,
-  ).all<any>();
-  return B.mitarbeiterSeite(results, basisUrl(c.req.raw));
+  return c.redirect('/buero/einstellungen', 303);
 });
 
 app.post('/buero/mitarbeiter', async (c) => {
@@ -645,18 +641,16 @@ app.post('/buero/mitarbeiter', async (c) => {
       `INSERT INTO mitarbeiter (name, einladung) VALUES (?, ?)`,
     ).bind(name, einladungscodeErzeugen()).run();
   }
-  return c.redirect('/buero/mitarbeiter', 303);
+  return c.redirect('/buero/einstellungen', 303);
 });
 
 app.post('/buero/mitarbeiter/:id/umschalten', async (c) => {
   await c.env.DB.prepare(
     `UPDATE mitarbeiter SET aktiv = 1 - aktiv WHERE id = ?`,
   ).bind(Number(c.req.param('id'))).run();
-  return c.redirect('/buero/mitarbeiter', 303);
+  return c.redirect('/buero/einstellungen', 303);
 });
 
-
-app.get('/buero/artikel', async (c) => B.artikelSeite(await artikelAlle(c.env)));
 
 app.post('/buero/artikel', async (c) => {
   const d = await eingabeLesen(c.req.raw);
@@ -671,25 +665,33 @@ app.post('/buero/artikel', async (c) => {
       String(d.mengeneinheit ?? '').trim() || 'Stk',
     ).run();
   }
-  return c.redirect('/buero/artikel', 303);
+  return c.redirect('/buero/einstellungen', 303);
 });
 
 app.get('/buero/auswertung', async (c) => {
   const schwelle = Number(c.req.query('schwelle')) || 120;
-  return B.auswertungSeite(
-    await vorhaltung(c.env), await verlust(c.env, schwelle), schwelle,
-  );
+  return B.verlustListe(await verlust(c.env, schwelle), schwelle);
 });
 
-app.get('/buero/meldungen', async (c) => {
-  const alle = c.req.query('alle') === '1';
-  return B.meldungenSeite(await meldungen(c.env, !alle), alle);
+app.get('/buero/einstellungen', async (c) => {
+  const { results: standorte } = await c.env.DB.prepare(
+    `SELECT * FROM standort ORDER BY aktiv DESC, typ, name`,
+  ).all<Standort>();
+  const { results: leute } = await c.env.DB.prepare(
+    `SELECT id, name, rolle, aktiv, einladung, token_hash, zuletzt_aktiv
+       FROM mitarbeiter ORDER BY aktiv DESC, name`,
+  ).all<any>();
+  return B.einstellungen({
+    standorte, leute,
+    artikel: await artikelAlle(c.env),
+    basisUrl: basisUrl(c.req.raw),
+  });
 });
 
 app.post('/buero/meldung/:id/erledigt', async (c) => {
   await c.env.DB.prepare(`UPDATE meldung SET erledigt = 1 WHERE id = ?`)
     .bind(Number(c.req.param('id'))).run();
-  return c.redirect('/buero/meldungen', 303);
+  return c.redirect('/buero', 303);
 });
 
 app.get('/buero/etiketten', async (c) => {

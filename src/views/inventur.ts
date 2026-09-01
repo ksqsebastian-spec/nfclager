@@ -9,7 +9,7 @@ export function inventurAuswahl(
 ): Response {
   const inhalt = `
 <h1>Inventur</h1>
-<p class="gedaempft">Standort abtappen, live sehen was fehlt.</p>
+<p class="still">Standort abtappen, live sehen was fehlt.</p>
 ${offene.length ? `
 <h2 style="margin-top:22px">Läuft gerade</h2>
 <ul class="wahl">${offene.map((o) =>
@@ -19,7 +19,7 @@ ${offene.length ? `
   ).join('')}</ul>` : ''}
 <h2 style="margin-top:22px">Neu starten</h2>
 ${standorte.length === 0
-    ? `<div class="tafel"><p><strong>Keine Standorte angelegt.</strong></p></div>`
+    ? `<div class="blatt"><p><strong>Keine Standorte angelegt.</strong></p></div>`
     : `<ul class="wahl">${standorte.map((s) =>
         `<li><form method="post" action="/inventur">
            <input type="hidden" name="standort_id" value="${s.id}">
@@ -53,17 +53,17 @@ export function inventurSeite(stand: InventurStand, sitzung: Sitzung | null): Re
 
   const inhalt = `
 <h1>${esc(i.standort ?? '')}</h1>
-<p class="gedaempft">Inventur ${i.id}${beendet ? ' · abgeschlossen' : ''}</p>
+<p class="still">Inventur ${i.id}${beendet ? ' · abgeschlossen' : ''}</p>
 
-<article class="tafel tafel-akzent">
+<article class="blatt">
   <p style="font-size:32px;font-weight:700;letter-spacing:-.03em;line-height:1.1">
     ${gefunden.length} <span style="color:var(--ink3);font-weight:550">von ${gesamt}</span></p>
   <div class="balkenanzeige"><span style="width:${anteil}%"></span></div>
-  <p class="gedaempft">${fehlend.length === 0
+  <p class="still">${fehlend.length === 0
     ? 'Alles gefunden.'
     : `${fehlend.length} ${fehlend.length === 1 ? 'fehlt' : 'fehlen'} noch`}</p>
   ${i.soll_anzahl !== null && i.soll_anzahl !== gesamt
-    ? `<p class="gedaempft klein" style="margin-top:6px">Beim Start waren
+    ? `<p class="leise" style="margin-top:6px">Beim Start waren
         ${i.soll_anzahl} Einheiten hier verbucht.</p>` : ''}
 </article>
 
@@ -72,23 +72,23 @@ ${beendet
     : notiz('erfolg', 'Läuft', ' Einfach die Tags antippen — jede Einheit wird beim Scannen erfasst.')}
 
 ${woanders.length ? `
-<article class="tafel">
+<article class="blatt">
   <h2>Hier gefunden, im System woanders</h2>
-  <p class="gedaempft klein" style="margin-top:4px">Automatisch hierher gebucht.</p>
+  <p class="leise" style="margin-top:4px">Automatisch hierher gebucht.</p>
   ${liste(woanders, false)}
 </article>` : ''}
 
-<article class="tafel">
+<article class="blatt">
   <h2>Fehlt noch (${fehlend.length})</h2>
   ${fehlend.length === 0
-    ? '<p class="gedaempft" style="margin-top:8px">Nichts offen.</p>'
+    ? '<p class="still" style="margin-top:8px">Nichts offen.</p>'
     : liste(fehlend, true)}
 </article>
 
-<article class="tafel">
+<article class="blatt">
   <h2>Erfasst (${gefunden.length})</h2>
   ${gefunden.length === 0
-    ? '<p class="gedaempft" style="margin-top:8px">Noch nichts.</p>'
+    ? '<p class="still" style="margin-top:8px">Noch nichts.</p>'
     : liste(gefunden.slice(0, 60), false)}
 </article>
 

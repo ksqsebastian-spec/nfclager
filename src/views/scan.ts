@@ -1,4 +1,4 @@
-import { esc, html, kopf, notiz, pille, seite } from './layout';
+import { esc, html, kopf, marke, notiz, seite } from './layout';
 import { seitText } from '../geo';
 import type { EinheitMitStandort, InhaltZeile, Standort } from '../types';
 import type { Sitzung } from '../auth';
@@ -63,6 +63,12 @@ export function aktionenFuer(
 
 export function formatMenge(m: number): string {
   return Number.isInteger(m) ? String(m) : m.toFixed(1).replace('.', ',');
+}
+
+/** Rohwerte aus der Datenbank gehören nicht auf den Bildschirm. */
+export function meldungsArt(a: string): string {
+  return { beschaedigt: 'beschädigt', reparatur: 'Reparatur', ok: 'in Ordnung',
+    hinweis: 'Hinweis' }[a] ?? a;
 }
 
 export function zustandText(z: string): string {
@@ -138,11 +144,11 @@ export function einheitSeite(o: {
 
   const inhalt = `
 ${meldung}
-<article class="tafel tafel-akzent">
+<article class="blatt">
   <span class="kennung">${esc(e.code)}</span>
   <h1 class="titel-gross">${esc(e.bezeichnung)}</h1>
   ${e.zustand !== 'ok'
-    ? `<p style="margin-top:10px">${pille(zustandText(e.zustand), 'warn')}</p>` : ''}
+    ? `<p style="margin-top:12px">${marke(zustandText(e.zustand), 'warn')}</p>` : ''}
   ${stueckliste(o.inhalt)}
   <div class="standzeit">
     <span class="wo">${esc(e.standort_name)}</span>
@@ -198,10 +204,10 @@ navigator.geolocation && navigator.geolocation.getCurrentPosition(function(p){
 
   const inhalt = `
 <h1>Wohin?</h1>
-<p class="gedaempft">${esc(o.bezeichnung)}</p>
+<p class="still">${esc(o.bezeichnung)}</p>
 ${o.standorte.length === 0
-    ? `<div class="tafel"><p><strong>Keine Standorte angelegt.</strong></p>
-       <p class="gedaempft klein" style="margin-top:6px">Das Büro muss zuerst
+    ? `<div class="blatt"><p><strong>Keine Standorte angelegt.</strong></p>
+       <p class="leise" style="margin-top:6px">Das Büro muss zuerst
        Baustellen anlegen.</p></div>`
     : `<ul class="wahl">${eintraege}</ul>`}
 <a class="knopf knopf-still" href="/t/${esc(o.code)}">Abbrechen</a>
@@ -218,15 +224,15 @@ ${o.standorte.length === 0
 /** Was ein Fremder sieht. Kostet nichts, holt gelegentlich Material zurück. */
 export function fremdSeite(e: EinheitMitStandort, firma: string, telefon: string): Response {
   const inhalt = `
-<article class="tafel tafel-akzent" style="text-align:center">
-  <p class="gedaempft" style="font-size:15px">Eigentum der</p>
+<article class="blatt" style="text-align:center">
+  <p class="still" style="font-size:15px">Eigentum der</p>
   <h1 style="font-size:24px;margin-top:6px">${esc(firma)}</h1>
-  <div class="standzeit" style="border-top-color:var(--linie)">
+  <div class="standzeit">
     <span class="wo">${esc(e.bezeichnung)}</span>
-    <span class="kennung" style="margin-top:9px">${esc(e.code)}</span>
+    <p style="margin-top:12px"><span class="kennung">${esc(e.code)}</span></p>
   </div>
 </article>
-<p style="text-align:center" class="gedaempft">Gefunden? Bitte melden:</p>
+<p style="text-align:center" class="still">Gefunden? Bitte melden:</p>
 <a class="knopf knopf-haupt" href="tel:${esc(telefon.replace(/\s/g, ''))}">${esc(telefon)}</a>
 <p class="fussnote">Mitarbeiter? Dann fehlt auf diesem Handy die Einrichtung —
   bitte im Büro melden.</p>`;
@@ -250,9 +256,9 @@ ${notiz('fehler', 'Unbekannter Tag', `Der Code ${code} ist nicht vergeben.`)}
 export function meldenSeite(e: EinheitMitStandort, fotoMoeglich: boolean): Response {
   const inhalt = `
 <h1>Melden</h1>
-<p class="gedaempft">${esc(e.code)} · ${esc(e.bezeichnung)}</p>
+<p class="still">${esc(e.code)} · ${esc(e.bezeichnung)}</p>
 <form method="post" action="/t/${esc(e.code)}/melden" enctype="multipart/form-data">
-  <div class="tafel">
+  <div class="blatt">
     <div class="feld"><label for="art">Was ist los?</label>
       <select id="art" name="art">
         <option value="beschaedigt">Beschädigt</option>

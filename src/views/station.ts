@@ -15,25 +15,25 @@ export function stationSeite(standorte: Standort[], ziel: number | null): Respon
 
   const inhalt = `
 <h1>Scan-Station</h1>
-<p class="gedaempft">Dauerscan fürs Be- und Entladen. Ein Ziel wählen, dann Tag an Tag halten.</p>
+<p class="still">Dauerscan fürs Be- und Entladen. Ein Ziel wählen, dann Tag an Tag halten.</p>
 
 <div id="nicht-unterstuetzt" hidden>
   ${notiz('hinweis', 'Dieses Gerät kann nicht dauerscannen',
     ' Web NFC gibt es nur in Chrome auf Android. Auf dem iPhone stattdessen den Tag direkt antippen — das Banner öffnet die Einheit.')}
 </div>
 
-<div class="tafel">
+<div class="blatt">
   <div class="feld" style="margin-bottom:0"><label for="ziel">Alles buchen nach</label>
     <select id="ziel">${optionen}</select></div>
 </div>
 <button id="start" class="knopf knopf-haupt" type="button">Scannen starten</button>
 <button id="stop" class="knopf knopf-warn" type="button" hidden>Scannen beenden</button>
 
-<article class="tafel tafel-akzent" id="status" hidden style="text-align:center">
+<article class="blatt" id="status" hidden style="text-align:center">
   <p id="status-text" style="font-size:20px;font-weight:650">Bereit — Tag ans Handy halten</p>
   <p style="font-size:40px;font-weight:700;letter-spacing:-.03em;margin-top:6px"
      id="zaehler">0</p>
-  <p class="gedaempft">gebucht</p>
+  <p class="still">gebucht</p>
 </article>
 
 <ul class="stueckliste" id="protokoll" style="margin-top:4px"></ul>

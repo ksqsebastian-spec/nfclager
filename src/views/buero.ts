@@ -1,8 +1,8 @@
 import {
-  abschnitt, esc, html, kacheln, kopf, kopfzeile, notiz, pille, seite, tabelle,
+  block, esc, html, kopf, kopfzeile, marke, notiz, seite, tabelle, zahlen,
 } from './layout';
+import { formatMenge, meldungsArt, zustandText } from './scan';
 import { NAME, zeichen } from './marke';
-import { formatMenge, zustandText } from './scan';
 import { seitText } from '../geo';
 import type {
   BestandZeile, HistorieZeile, MeldungZeile, UeberfaelligZeile,
@@ -10,206 +10,215 @@ import type {
 } from '../db';
 import type { Artikel, EinheitMitStandort, InhaltZeile, Standort } from '../types';
 
-/** Gruppierte Navigation. Der aktive Eintrag wird über den Pfad erkannt. */
-const NAVI: Array<{ gruppe: string; punkte: Array<[string, string]> }> = [
-  { gruppe: 'Lager', punkte: [
-    ['/buero', 'Übersicht'],
-    ['/buero/bestand', 'Bestand'],
-    ['/buero/einheiten', 'Einheiten'],
-  ] },
-  { gruppe: 'Stammdaten', punkte: [
-    ['/buero/standorte', 'Standorte'],
-    ['/buero/artikel', 'Artikel'],
-    ['/buero/mitarbeiter', 'Mitarbeiter'],
-  ] },
-  { gruppe: 'Kontrolle', punkte: [
-    ['/buero/auswertung', 'Auswertung'],
-    ['/buero/meldungen', 'Meldungen'],
-  ] },
+/**
+ * Drei Reiter, nicht acht.
+ *
+ * Vorher gab es Übersicht, Bestand, Einheiten, Standorte, Artikel, Auswertung,
+ * Meldungen und Mitarbeiter — für ein Lager mit ein paar hundert Gitterboxen.
+ * Die Hälfte davon war dieselbe Zahl aus einem anderen Blickwinkel. Jetzt:
+ * was ist los, was liegt wo, und einmal einrichten.
+ */
+const REITER: Array<[string, string]> = [
+  ['/buero', 'Übersicht'],
+  ['/buero/lager', 'Lager'],
+  ['/buero/einstellungen', 'Einstellungen'],
 ];
 
-/**
- * Eine einzige Navigationsspur.
- *
- * Auf dem Schreibtisch eine gruppierte Liste, auf dem Handy per CSS dieselben
- * Elemente als eine waagerechte Rolleiste — deshalb liegt alles in EINEM
- * <nav>, statt je Gruppe eines zu bauen.
- */
-function leiste(pfad: string): string {
-  const punkte = NAVI.map((g) =>
-    `<span class="gruppe">${esc(g.gruppe)}</span>` +
-    g.punkte.map(([href, text]) => {
-      const aktiv = href === '/buero' ? pfad === '/buero' : pfad.startsWith(href);
-      return `<a href="${esc(href)}"${aktiv ? ' class="aktiv"' : ''}>${esc(text)}</a>`;
-    }).join(''),
-  ).join('');
+function gestell(titel: string, pfad: string, inhalt: string, status = 200): Response {
+  const reiter = REITER.map(([href, text]) => {
+    const aktiv = href === '/buero' ? pfad === '/buero' : pfad.startsWith(href);
+    return `<a href="${esc(href)}"${aktiv ? ' class="aktiv"' : ''}>${esc(text)}</a>`;
+  }).join('');
 
-  return `<aside class="leiste">
-    <div class="marke">${zeichen(22)}${esc(NAME)} <span class="rolle">Büro</span></div>
-    <nav class="navi">
-      ${punkte}
-      <span class="trenner"></span>
-      <a class="nebensache" href="/">Baustellen-Ansicht</a>
-      <a class="nebensache" href="/buero/abmelden">Abmelden</a>
-    </nav>
-  </aside>`;
-}
-
-function bueroSeite(titel: string, pfad: string, inhalt: string, status = 200): Response {
-  return html(seite(
-    `<div class="buero">${leiste(pfad)}<main class="inhalt">${inhalt}</main></div>`,
+  return html(seite(`
+<header class="buerokopf">
+  <div class="oben">
+    <span class="marke">${zeichen(21, 'currentColor')}${esc(NAME)}</span>
+    <a class="abmelden" href="/buero/abmelden">Abmelden</a>
+  </div>
+  <nav class="reiter">${reiter}</nav>
+</header>
+<main class="inhalt">${inhalt}</main>`,
     { titel: `${titel} · ${NAME}`, roh: true },
   ), status);
 }
 
 export function anmeldung(fehler?: string): Response {
   const inhalt = `
-<h1>${esc(NAME)} — Büro</h1>
-<p class="gedaempft">Gerüstlager der J. Werner Gerüstbau</p>
+<h1>${esc(NAME)}</h1>
+<p class="still">Gerüstlager der J. Werner Gerüstbau</p>
 ${fehler ? notiz('fehler', fehler) : ''}
 <form method="post" action="/buero/anmelden">
-  <div class="tafel">
-    <div class="feld"><label for="pw">Passwort</label>
-      <input type="password" id="pw" name="passwort" autocomplete="current-password" required></div>
-  </div>
+  <div class="feld"><label for="pw">Passwort</label>
+    <input type="password" id="pw" name="passwort" autocomplete="current-password" required></div>
   <button class="knopf knopf-lager" type="submit">Anmelden</button>
 </form>`;
   return html(seite(inhalt, { titel: `Büro · ${NAME}`, kopf: kopf() }), fehler ? 401 : 200);
 }
 
-/* ---------------------------------------------------------- Übersicht --- */
+/* ═══════════════════════════════════════════════════════════ Übersicht ══ */
 
+/** Alles, was heute jemanden interessiert, auf einem Blatt. */
 export function uebersicht(o: {
   einheiten: number;
   aufBaustellen: number;
   imLager: number;
-  ueberfaellig: UeberfaelligZeile[];
   standorte: number;
-  offeneMeldungen: number;
+  ueberfaellig: UeberfaelligZeile[];
+  meldungen: MeldungZeile[];
+  vorhaltung: VorhaltungZeile[];
 }): Response {
   const beendet = o.ueberfaellig.filter((u) => u.baustelle_beendet).length;
 
-  const kopfKacheln = kacheln([
-    { wert: o.einheiten, schild: 'Einheiten', zusatz: `auf ${o.standorte} Standorten`, ton: 'blau' },
-    { wert: o.imLager, schild: 'im Lager', zusatz: 'verfügbar', ton: 'gruen' },
-    { wert: o.aufBaustellen, schild: 'auf Baustellen', zusatz: 'draußen', ton: 'amber' },
-    {
-      wert: o.ueberfaellig.length,
-      schild: 'überfällig',
-      zusatz: beendet ? `davon ${beendet} auf beendeten Baustellen` : 'über der Schwelle',
-      ton: o.ueberfaellig.length ? 'rot' : undefined,
-    },
-  ]);
-
-  const zeilen = o.ueberfaellig.slice(0, 12).map((u) => [
+  const ueberfaelligZeilen = o.ueberfaellig.map((u) => [
     `<a href="/buero/einheit/${u.einheit_id}"><strong>${esc(u.code)}</strong></a>
      <span class="zweitzeile">${esc(u.bezeichnung)}</span>`,
-    `${esc(u.standort)}${u.baustelle_beendet ? ` ${pille('beendet', 'warn')}` : ''}`,
-    `${u.tage} T`,
+    `${esc(u.standort)}${u.baustelle_beendet ? ` ${marke('beendet', 'warn')}` : ''}`,
+    `<strong>${u.tage}</strong>`,
     esc(u.zuletzt_gebucht_von ?? '—'),
   ]);
 
+  const meldungsZeilen = o.meldungen.map((m) => [
+    `<a href="/buero/einheit/${m.einheit_id}"><strong>${esc(m.code)}</strong></a>
+     <span class="zweitzeile">${esc(m.bezeichnung)}</span>`,
+    marke(meldungsArt(m.art), m.art === 'ok' ? 'ok' : 'warn'),
+    `${esc(m.text ?? '')}${m.foto_schluessel
+      ? `<span class="zweitzeile"><a href="/foto/${esc(m.foto_schluessel)}">Foto</a></span>` : ''}`,
+    `${esc(m.zeit.slice(0, 10))}<span class="zweitzeile">${esc(m.wer ?? '—')}</span>`,
+    `<form method="post" action="/buero/meldung/${m.id}/erledigt">
+       <button class="knopf knopf-zweit" type="submit">erledigt</button></form>`,
+  ]);
+
+  const vorhaltungsZeilen = o.vorhaltung.map((v) => [
+    `<strong>${esc(v.standort)}</strong>${v.aktiv ? '' : ` ${marke('beendet', 'warn')}`}`,
+    String(v.einheiten),
+    `<strong>${v.tage_summe}</strong>`,
+    String(v.tage_max),
+  ]);
+
   const inhalt = `
-${kopfzeile('Übersicht', 'Wo das Material steht und was zu lange draußen ist.')}
-${kopfKacheln}
-${o.offeneMeldungen > 0
-    ? `<div class="notiz notiz-hinweis" style="margin-bottom:22px">
-         <strong>${o.offeneMeldungen} offene Meldung${o.offeneMeldungen === 1 ? '' : 'en'} von der Baustelle</strong>
-         <a href="/buero/meldungen">Meldungen ansehen →</a>
-       </div>`
-    : ''}
-${abschnitt(
-    { titel: 'Überfällig', beitext: o.ueberfaellig.length > 12
-      ? `12 von ${o.ueberfaellig.length}` : undefined },
+${kopfzeile('Übersicht')}
+${zahlen([
+    { wert: o.imLager, wort: 'im Lager', zusatz: 'verfügbar' },
+    { wert: o.aufBaustellen, wort: 'draußen', zusatz: `auf ${o.standorte} Standorten` },
+    { wert: o.ueberfaellig.length, wort: 'überfällig',
+      zusatz: beendet ? `${beendet} auf beendeten Baustellen` : 'über der Schwelle',
+      achtung: o.ueberfaellig.length > 0 },
+    { wert: o.meldungen.length, wort: 'Meldungen', zusatz: 'offen',
+      achtung: o.meldungen.length > 0 },
+  ])}
+
+${block({ titel: 'Überfällig', beitext: 'länger als 8 Wochen draußen oder auf beendeter Baustelle' },
     o.ueberfaellig.length === 0
-      ? `<div class="leer"><strong>Nichts überfällig</strong>
-          Alles Material ist entweder im Lager oder noch nicht lange genug draußen.</div>`
+      ? `<div class="leer"><strong>Nichts überfällig</strong>Alles Material ist im Lager oder
+          noch nicht lange genug draußen.</div>`
       : tabelle(
-          [{ titel: 'Einheit' }, { titel: 'Standort' }, { titel: 'Steht', zahl: true },
+          [{ titel: 'Einheit' }, { titel: 'Standort' }, { titel: 'Tage', zahl: true },
             { titel: 'Zuletzt gebucht' }],
-          zeilen,
-        ),
-  )}`;
-  return bueroSeite('Übersicht', '/buero', inhalt);
+          ueberfaelligZeilen,
+        ))}
+
+${block({ titel: 'Offene Meldungen', beitext: 'Schäden von der Baustelle' },
+    o.meldungen.length === 0
+      ? `<div class="leer"><strong>Keine Meldungen</strong>Nichts Offenes.</div>`
+      : tabelle(
+          [{ titel: 'Einheit' }, { titel: 'Art' }, { titel: 'Was' }, { titel: 'Wann' }, { titel: '' }],
+          meldungsZeilen,
+        ))}
+
+${block({ titel: 'Vorhaltetage', beitext: 'Einheitentage = Summe über alle Einheiten' },
+    o.vorhaltung.length === 0
+      ? `<div class="leer"><strong>Noch keine Bewegungen</strong>Sobald Material rausgeht und
+          zurückkommt, steht hier die belastbare Mietdauer.</div>`
+      : tabelle(
+          [{ titel: 'Baustelle' }, { titel: 'Einheiten', zahl: true },
+            { titel: 'Einheitentage', zahl: true }, { titel: 'Längste', zahl: true }],
+          vorhaltungsZeilen,
+        ))}`;
+  return gestell('Übersicht', '/buero', inhalt);
 }
 
-/* ------------------------------------------------------------ Bestand --- */
+/* ═══════════════════════════════════════════════════════════════ Lager ══ */
 
-export function bestandSeite(zeilen: BestandZeile[], filter: string): Response {
+/**
+ * Einheiten und Bestand waren zwei Menüpunkte für dieselben Daten. Jetzt eine
+ * Seite mit einem Umschalter: Kisten zählen oder Material summieren.
+ */
+export function lagerSeite(o: {
+  sicht: 'einheiten' | 'artikel';
+  einheiten: EinheitMitStandort[];
+  bestand: BestandZeile[];
+  standorte: Standort[];
+  filter: string;
+}): Response {
+  const umschalter = (['einheiten', 'artikel'] as const).map((s) =>
+    `<a class="knopf ${o.sicht === s ? 'knopf-lager' : 'knopf-zweit'}"
+        href="/buero/lager?sicht=${s}${o.filter ? `&q=${encodeURIComponent(o.filter)}` : ''}">
+       ${s === 'einheiten' ? 'Nach Einheit' : 'Nach Artikel'}</a>`).join('');
+
+  const einheitenZeilen = o.einheiten.map((e) => [
+    `<a href="/buero/einheit/${e.id}"><strong class="mono">${esc(e.code)}</strong></a>`,
+    `${esc(e.bezeichnung)}${e.zustand !== 'ok' ? ` ${marke(zustandText(e.zustand), 'warn')}` : ''}`,
+    `${esc(e.standort_name)}<span class="zweitzeile">${esc(seitText(e.seit))}</span>`,
+  ]);
+
+  // Bestand: je Artikel eine Zeile, Lagerbestand gegen Gesamtbestand.
   const proArtikel = new Map<string, BestandZeile[]>();
-  for (const z of zeilen) {
+  for (const z of o.bestand) {
     const liste = proArtikel.get(z.artikel) ?? [];
     liste.push(z);
     proArtikel.set(z.artikel, liste);
   }
+  const bestandZeilen = [...proArtikel.entries()].map(([artikel, orte]) => {
+    const summe = orte.reduce((s, x) => s + x.menge, 0);
+    const imLager = orte.filter((x) => x.standort_typ === 'lager').reduce((s, x) => s + x.menge, 0);
+    const draussen = orte.filter((x) => x.standort_typ !== 'lager');
+    return [
+      `<strong>${esc(artikel)}</strong>`,
+      `<strong>${esc(formatMenge(imLager))}</strong>`,
+      esc(formatMenge(summe - imLager)),
+      esc(formatMenge(summe)),
+      draussen.length
+        ? `<span class="leise">${draussen.map((x) =>
+            `${esc(x.standort)} (${formatMenge(x.menge)})`).join(' · ')}</span>`
+        : '',
+    ];
+  });
 
-  const bloecke = [...proArtikel.entries()].map(([artikel, orte]) => {
-    const summe = orte.reduce((s, o) => s + o.menge, 0);
-    const imLager = orte.filter((o) => o.standort_typ === 'lager')
-      .reduce((s, o) => s + o.menge, 0);
-    const einheit = orte[0]!.mengeneinheit;
-    return abschnitt(
-      {
-        titel: artikel,
-        beitext: `${formatMenge(imLager)} von ${formatMenge(summe)} ${einheit} im Lager`,
-      },
-      tabelle(
-        [{ titel: 'Standort' }, { titel: 'Menge', zahl: true }],
-        orte.map((o) => [
-          `${esc(o.standort)} ${pille(o.standort_typ, o.standort_typ === 'lager' ? 'lager' : 'baustelle')}`,
-          `<strong>${esc(formatMenge(o.menge))}</strong> <span class="gedaempft">${esc(o.mengeneinheit)}</span>`,
-        ]),
-      ),
-    );
-  }).join('');
-
-  const inhalt = `
-${kopfzeile('Bestand', 'Zählt Inhalt von Ladungsträgern und separat getaggte Einzelteile zusammen.')}
-<form method="get" class="filter">
-  <input type="text" name="q" placeholder="Artikel filtern …" value="${esc(filter)}">
-  <button class="knopf knopf-zweit" type="submit">Filtern</button>
-  ${filter ? '<a class="knopf knopf-still" href="/buero/bestand">Zurücksetzen</a>' : ''}
-</form>
-${zeilen.length === 0
-    ? `<div class="abschnitt"><div class="leer"><strong>Kein Bestand</strong>
-        ${filter ? 'Kein Artikel passt zum Filter.'
-          : 'Sobald Einheiten mit Inhalt erfasst sind, steht hier die Summe.'}</div></div>`
-    : bloecke}`;
-  return bueroSeite('Bestand', '/buero/bestand', inhalt);
-}
-
-/* ---------------------------------------------------------- Einheiten --- */
-
-export function einheitenSeite(
-  einheiten: EinheitMitStandort[], standorte: Standort[], filter: string,
-): Response {
-  const zeilen = einheiten.map((e) => [
-    `<a href="/buero/einheit/${e.id}"><strong>${esc(e.code)}</strong></a>`,
-    `${esc(e.bezeichnung)}${e.zustand !== 'ok'
-      ? ` ${pille(zustandText(e.zustand), 'warn')}` : ''}`,
-    `${esc(e.standort_name)}<span class="zweitzeile">${esc(seitText(e.seit))}</span>`,
-  ]);
-
-  const optionen = standorte.map((s) =>
+  const optionen = o.standorte.map((s) =>
     `<option value="${s.id}">${esc(s.name)}</option>`).join('');
 
   const inhalt = `
-${kopfzeile('Einheiten', 'Ladungsträger mit gezähltem Inhalt und Großteile. Jede bekommt beim Anlegen einen Tag-Code.',
-    '<a class="knopf knopf-zweit" href="/buero/etiketten">Alle Etiketten drucken</a>')}
-<form method="get" class="filter">
-  <input type="text" name="q" placeholder="Code oder Bezeichnung …" value="${esc(filter)}">
-  <button class="knopf knopf-zweit" type="submit">Suchen</button>
-  ${filter ? '<a class="knopf knopf-still" href="/buero/einheiten">Zurücksetzen</a>' : ''}
-</form>
-${abschnitt(
-    { titel: 'Bestand an Einheiten', beitext: `${einheiten.length} Stück` },
-    einheiten.length === 0
-      ? `<div class="leer"><strong>Keine Einheiten</strong>
-          ${filter ? 'Nichts passt zur Suche.' : 'Unten die erste Gitterbox anlegen.'}</div>`
-      : tabelle([{ titel: 'Code' }, { titel: 'Bezeichnung' }, { titel: 'Standort' }], zeilen),
-  )}
-${abschnitt({ titel: 'Neue Einheit', gepolstert: true }, `
-<form method="post" action="/buero/einheiten">
+${kopfzeile('Lager', undefined,
+    `<a class="knopf knopf-zweit" href="/buero/etiketten">Etiketten drucken</a>`)}
+<div class="filter">
+  ${umschalter}
+  <form method="get" style="display:flex;gap:12px;flex:1;min-width:240px">
+    <input type="hidden" name="sicht" value="${esc(o.sicht)}">
+    <input type="text" name="q" placeholder="Suchen …" value="${esc(o.filter)}">
+    <button class="knopf knopf-zweit" type="submit">Suchen</button>
+  </form>
+</div>
+
+${o.sicht === 'artikel'
+    ? block({ titel: 'Material', beitext: `${bestandZeilen.length} Artikel im Umlauf` },
+        bestandZeilen.length === 0
+          ? `<div class="leer"><strong>Kein Bestand</strong>Sobald Einheiten mit Inhalt erfasst
+              sind, steht hier die Summe.</div>`
+          : tabelle(
+              [{ titel: 'Artikel' }, { titel: 'Lager', zahl: true }, { titel: 'Draußen', zahl: true },
+                { titel: 'Gesamt', zahl: true }, { titel: 'Wo draußen' }],
+              bestandZeilen,
+            ))
+    : block({ titel: 'Einheiten', beitext: `${o.einheiten.length} Stück` },
+        o.einheiten.length === 0
+          ? `<div class="leer"><strong>Keine Einheiten</strong>${o.filter
+              ? 'Nichts passt zur Suche.' : 'Unten die erste Gitterbox anlegen.'}</div>`
+          : tabelle([{ titel: 'Code' }, { titel: 'Bezeichnung' }, { titel: 'Standort' }],
+              einheitenZeilen))}
+
+${block({ titel: 'Neue Einheit', gepolstert: true }, `
+<form method="post" action="/buero/lager">
   <div class="feld"><label for="bez">Bezeichnung</label>
     <input type="text" id="bez" name="bezeichnung" required
       placeholder="z. B. Gitterbox Rahmen 2,00 m"></div>
@@ -226,7 +235,7 @@ ${abschnitt({ titel: 'Neue Einheit', gepolstert: true }, `
     <select id="st" name="standort_id">${optionen}</select></div>
   <button class="knopf knopf-lager" type="submit">Anlegen und Tag erzeugen</button>
 </form>`)}`;
-  return bueroSeite('Einheiten', '/buero/einheiten', inhalt);
+  return gestell('Lager', '/buero/lager', inhalt);
 }
 
 export function einheitDetail(o: {
@@ -236,54 +245,43 @@ export function einheitDetail(o: {
   artikel: Artikel[];
   tagCodes: string[];
   basisUrl: string;
-  meldung?: string;
 }): Response {
   const { einheit: e } = o;
 
-  const tagZeilen = o.tagCodes.map((c) => [
-    `<span class="kennung">${esc(c)}</span>`,
-    `<span class="gedaempft klein">${esc(o.basisUrl)}/t/${esc(c)}</span>`,
-  ]);
-
   const inhaltZeilen = o.inhalt.map((z) => [
     esc(z.name),
-    `<strong>${esc(formatMenge(z.menge))}</strong> <span class="gedaempft">${esc(z.mengeneinheit)}</span>`,
+    `<strong>${esc(formatMenge(z.menge))}</strong> <span class="leise">${esc(z.mengeneinheit)}</span>`,
     `<form method="post" action="/buero/einheit/${e.id}/inhalt">
        <input type="hidden" name="artikel_id" value="${z.artikel_id}">
        <input type="hidden" name="menge" value="0">
-       <button class="knopf knopf-still" type="submit">entfernen</button></form>`,
+       <button class="knopf knopf-zweit" type="submit">entfernen</button></form>`,
   ]);
 
   const histZeilen = o.historie.map((h) => [
-    esc(h.zeit.slice(0, 16).replace(' ', ' · ')),
+    `<span class="mono">${esc(h.zeit.slice(0, 16))}</span>`,
     `${esc(h.von ?? '—')} → <strong>${esc(h.nach)}</strong>`,
-    `${esc(h.wer ?? '—')} ${pille(h.quelle, 'ruhig')}`,
+    `${esc(h.wer ?? '—')} ${marke(h.quelle, 'ruhig')}`,
   ]);
 
   const artikelOptionen = o.artikel.map((a) =>
     `<option value="${a.id}">${esc(a.name)}</option>`).join('');
 
+  const tagListe = o.tagCodes.map((c) =>
+    `<li><span class="mono"><strong>${esc(c)}</strong></span>
+       <span class="leise">${esc(o.basisUrl)}/t/${esc(c)}</span></li>`).join('');
+
   const inhalt = `
-${o.meldung ? notiz('erfolg', o.meldung) : ''}
-${kopfzeile(e.code, `${e.bezeichnung} · ${e.standort_name} · ${seitText(e.seit)} · ${zustandText(e.zustand)}`,
+${kopfzeile(e.code,
+    `${e.bezeichnung} · ${e.standort_name} · ${seitText(e.seit)} · ${zustandText(e.zustand)}`,
     `<a class="knopf knopf-zweit" href="/buero/etiketten?einheit=${e.id}">Etikett drucken</a>
      <form method="post" action="/buero/einheit/${e.id}/tag">
-       <button class="knopf knopf-still" type="submit">Ersatz-Tag</button></form>`)}
+       <button class="knopf knopf-zweit" type="submit">Ersatz-Tag</button></form>`)}
 
-${abschnitt(
-    { titel: 'Tags', beitext: 'Der Chip trägt diese URL' },
-    o.tagCodes.length === 0
-      ? `<div class="leer"><strong>Kein Tag zugeordnet</strong>Über „Ersatz-Tag" einen erzeugen.</div>`
-      : tabelle([{ titel: 'Code' }, { titel: 'URL' }], tagZeilen),
-  )}
-
-${abschnitt(
-    { titel: 'Inhalt', beitext: o.inhalt.length ? `${o.inhalt.length} Positionen` : undefined },
+${block({ titel: 'Inhalt', gepolstert: true },
     (o.inhalt.length === 0
       ? `<div class="leer"><strong>Leer</strong>Unten Artikel und Menge eintragen.</div>`
       : tabelle([{ titel: 'Artikel' }, { titel: 'Menge', zahl: true }, { titel: '' }], inhaltZeilen)) +
-    `<div class="koerper" style="border-top:1px solid var(--linie)">
-    <form method="post" action="/buero/einheit/${e.id}/inhalt">
+    `<form method="post" action="/buero/einheit/${e.id}/inhalt" style="margin-top:22px">
       <div class="felder-zwei">
         <div class="feld"><label for="art">Artikel</label>
           <select id="art" name="artikel_id">${artikelOptionen}</select></div>
@@ -291,219 +289,134 @@ ${abschnitt(
           <input type="number" id="menge" name="menge" step="0.1" min="0" value="1"></div>
       </div>
       <button class="knopf knopf-zweit" type="submit">Inhalt setzen</button>
-    </form></div>`,
-  )}
+    </form>`)}
 
-${abschnitt(
-    { titel: 'Historie', beitext: 'Jede Bewegung, lückenlos' },
+${block({ titel: 'Tags', beitext: 'der Chip trägt diese URL', gepolstert: true },
+    o.tagCodes.length === 0
+      ? `<div class="leer"><strong>Kein Tag</strong>Oben über „Ersatz-Tag" einen erzeugen.</div>`
+      : `<ul class="stueckliste" style="border-top:0;margin-top:0">${tagListe}</ul>`)}
+
+${block({ titel: 'Historie', beitext: 'jede Bewegung, lückenlos' },
     o.historie.length === 0
       ? `<div class="leer"><strong>Noch keine Bewegungen</strong></div>`
-      : tabelle([{ titel: 'Wann' }, { titel: 'Bewegung' }, { titel: 'Wer' }], histZeilen),
-  )}`;
-  return bueroSeite(e.code, '/buero/einheiten', inhalt);
+      : tabelle([{ titel: 'Wann' }, { titel: 'Bewegung' }, { titel: 'Wer' }], histZeilen))}`;
+  return gestell(e.code, '/buero/lager', inhalt);
 }
 
-/* ---------------------------------------------------------- Standorte --- */
+/* ═══════════════════════════════════════════════════════ Einstellungen ══ */
 
-export function standorteSeite(standorte: Standort[]): Response {
-  const zeilen = standorte.map((s) => [
+/** Standorte, Artikel und Mitarbeiter — alles, was man einmal einrichtet. */
+export function einstellungen(o: {
+  standorte: Standort[];
+  artikel: Artikel[];
+  leute: Array<{ id: number; name: string; rolle: string; aktiv: number;
+    einladung: string | null; token_hash: string | null; zuletzt_aktiv: string | null }>;
+  basisUrl: string;
+}): Response {
+  const standortZeilen = o.standorte.map((s) => [
     `<strong>${esc(s.name)}</strong>${s.adresse
       ? `<span class="zweitzeile">${esc(s.adresse)}</span>` : ''}`,
-    pille(s.typ, s.typ === 'lager' ? 'lager' : 'baustelle') +
-      (s.aktiv ? '' : ` ${pille('beendet', 'warn')}`),
+    marke(s.typ, s.typ === 'lager' ? 'voll' : 'ruhig') +
+      (s.aktiv ? '' : ` ${marke('beendet', 'warn')}`),
     `<a href="/buero/etiketten?standort=${s.id}">Etikett</a>`,
     s.typ === 'baustelle' && s.aktiv
       ? `<form method="post" action="/buero/standorte/${s.id}/beenden">
-           <button class="knopf knopf-still" type="submit">beenden</button></form>`
-      : '',
+           <button class="knopf knopf-zweit" type="submit">beenden</button></form>` : '',
   ]);
 
-  const inhalt = `
-${kopfzeile('Standorte',
-    'Das Lager und die laufenden Baustellen. Jede erzeugt einen Standort-Tag: einmal am Bauzaun antippen, danach geht jede Einheit mit einem Tap dorthin.')}
-${abschnitt(
-    { titel: 'Alle Standorte', beitext: `${standorte.filter((s) => s.aktiv).length} aktiv` },
-    tabelle(
-      [{ titel: 'Name' }, { titel: 'Art' }, { titel: 'Tag' }, { titel: '' }],
-      zeilen,
-    ),
-  )}
-${abschnitt({ titel: 'Neuer Standort', gepolstert: true }, `
-<form method="post" action="/buero/standorte">
-  <div class="feld"><label for="n">Name</label>
-    <input type="text" id="n" name="name" required placeholder="z. B. Elbchaussee 12"></div>
-  <div class="feld"><label for="a">Adresse</label>
-    <input type="text" id="a" name="adresse" placeholder="optional"></div>
-  <div class="feld"><label for="t">Art</label>
-    <select id="t" name="typ">
-      <option value="baustelle">Baustelle</option>
-      <option value="lager">Lager</option>
-    </select></div>
-  <div class="feld"><label for="lat">Koordinaten — sortiert die Auswahl auf dem Handy nach Nähe</label>
-    <div class="felder-zwei">
-      <input type="text" id="lat" name="lat" placeholder="Breite, z. B. 53.5511">
-      <input type="text" name="lon" placeholder="Länge, z. B. 9.9937"></div></div>
-  <button class="knopf knopf-lager" type="submit">Anlegen</button>
-</form>`)}`;
-  return bueroSeite('Standorte', '/buero/standorte', inhalt);
-}
+  const leuteZeilen = o.leute.map((m) => [
+    `<strong>${esc(m.name)}</strong>${m.aktiv ? '' : ` ${marke('gesperrt', 'warn')}`}`,
+    m.token_hash
+      ? marke('eingerichtet', 'ok')
+      : m.einladung
+        ? `<a href="${esc(o.basisUrl)}/einladung/${esc(m.einladung)}">Einladungslink</a>`
+        : '<span class="leise">—</span>',
+    esc(m.zuletzt_aktiv?.slice(0, 10) ?? '—'),
+    `<form method="post" action="/buero/mitarbeiter/${m.id}/umschalten">
+       <button class="knopf knopf-zweit" type="submit">${
+         m.aktiv ? 'sperren' : 'freigeben'}</button></form>`,
+  ]);
 
-/* ------------------------------------------------------------ Artikel --- */
-
-export function artikelSeite(artikel: Artikel[]): Response {
-  const zeilen = artikel.map((a) => [
+  const artikelZeilen = o.artikel.map((a) => [
     `<strong>${esc(a.name)}</strong>`,
-    pille(a.kategorie, 'ruhig'),
+    esc(a.kategorie),
     esc(a.mengeneinheit),
   ]);
 
   const inhalt = `
-${kopfzeile('Artikel', 'Der Materialstamm. Was hier steht, lässt sich als Inhalt einer Gitterbox erfassen.')}
-${abschnitt(
-    { titel: 'Materialstamm', beitext: `${artikel.length} Positionen` },
-    tabelle([{ titel: 'Name' }, { titel: 'Kategorie' }, { titel: 'Einheit' }], zeilen),
-  )}
-${abschnitt({ titel: 'Neuer Artikel', gepolstert: true }, `
-<form method="post" action="/buero/artikel">
-  <div class="feld"><label for="an">Name</label>
-    <input type="text" id="an" name="name" required placeholder="z. B. Rahmen 2,00 m"></div>
-  <div class="felder-zwei">
-    <div class="feld"><label for="ak">Kategorie</label>
-      <input type="text" id="ak" name="kategorie" placeholder="z. B. rahmen"></div>
-    <div class="feld"><label for="am">Mengeneinheit</label>
-      <input type="text" id="am" name="mengeneinheit" value="Stk"></div>
-  </div>
-  <button class="knopf knopf-lager" type="submit">Anlegen</button>
-</form>`)}`;
-  return bueroSeite('Artikel', '/buero/artikel', inhalt);
+${kopfzeile('Einstellungen')}
+
+${block({ titel: 'Standorte', beitext: `${o.standorte.filter((s) => s.aktiv).length} aktiv · jeder erzeugt einen Standort-Tag`, gepolstert: true },
+    tabelle([{ titel: 'Name' }, { titel: 'Art' }, { titel: 'Tag' }, { titel: '' }], standortZeilen) +
+    `<form method="post" action="/buero/standorte" style="margin-top:24px">
+      <div class="felder-zwei">
+        <div class="feld"><label for="n">Name</label>
+          <input type="text" id="n" name="name" required placeholder="z. B. Elbchaussee 12"></div>
+        <div class="feld"><label for="a">Adresse</label>
+          <input type="text" id="a" name="adresse" placeholder="optional"></div>
+      </div>
+      <div class="felder-zwei">
+        <div class="feld"><label for="t">Art</label>
+          <select id="t" name="typ">
+            <option value="baustelle">Baustelle</option>
+            <option value="lager">Lager</option>
+          </select></div>
+        <div class="feld"><label for="lat">Koordinaten — sortiert die Auswahl nach Nähe</label>
+          <div class="felder-zwei">
+            <input type="text" id="lat" name="lat" placeholder="53.5511">
+            <input type="text" name="lon" placeholder="9.9937"></div></div>
+      </div>
+      <button class="knopf knopf-lager" type="submit">Standort anlegen</button>
+    </form>`)}
+
+${block({ titel: 'Mitarbeiter', beitext: 'Einladungslink einmal schicken — kein Passwort, kein Login', gepolstert: true },
+    tabelle([{ titel: 'Name' }, { titel: 'Status' }, { titel: 'Zuletzt' }, { titel: '' }], leuteZeilen) +
+    `<form method="post" action="/buero/mitarbeiter" style="margin-top:24px">
+      <div class="feld"><label for="mn">Name</label>
+        <input type="text" id="mn" name="name" required></div>
+      <button class="knopf knopf-lager" type="submit">Anlegen und Einladung erzeugen</button>
+    </form>`)}
+
+${block({ titel: 'Artikel', beitext: `${o.artikel.length} Positionen im Materialstamm`, gepolstert: true },
+    tabelle([{ titel: 'Name' }, { titel: 'Kategorie' }, { titel: 'Einheit' }], artikelZeilen) +
+    `<form method="post" action="/buero/artikel" style="margin-top:24px">
+      <div class="felder-zwei">
+        <div class="feld"><label for="an">Name</label>
+          <input type="text" id="an" name="name" required placeholder="z. B. Rahmen 2,00 m"></div>
+        <div class="feld"><label for="am">Mengeneinheit</label>
+          <input type="text" id="am" name="mengeneinheit" value="Stk"></div>
+      </div>
+      <div class="feld"><label for="ak">Kategorie</label>
+        <input type="text" id="ak" name="kategorie" placeholder="z. B. rahmen"></div>
+      <button class="knopf knopf-lager" type="submit">Artikel anlegen</button>
+    </form>`)}
+
+${block({ titel: 'Vermuteter Verlust', beitext: 'nur zur Kenntnis — Details auf der Übersicht' },
+    `<p class="still" style="padding:18px 0">Material, das seit über 120 Tagen draußen steht
+      oder auf einer beendeten Baustelle liegt, findest du auf der
+      <a href="/buero">Übersicht</a> unter „Überfällig".</p>`)}`;
+  return gestell('Einstellungen', '/buero/einstellungen', inhalt);
 }
 
-/* --------------------------------------------------------- Auswertung --- */
-
-export function auswertungSeite(
-  vorhaltung: VorhaltungZeile[], verlust: VerlustZeile[], schwelle: number,
-): Response {
-  const vZeilen = vorhaltung.map((v) => [
-    `<strong>${esc(v.standort)}</strong>${v.aktiv ? '' : ` ${pille('beendet', 'warn')}`}
-     <span class="zweitzeile">erste Lieferung ${esc(v.erste_lieferung?.slice(0, 10) ?? '—')}</span>`,
-    String(v.einheiten),
-    `<strong>${v.tage_summe}</strong>`,
-    String(v.tage_max),
-  ]);
-
-  const lZeilen = verlust.map((l) => [
+/** Nur noch für den MCP-Server und alte Lesezeichen gebraucht. */
+export function verlustListe(zeilen: VerlustZeile[], schwelle: number): Response {
+  const lZeilen = zeilen.map((l) => [
     `<a href="/buero/einheit/${l.einheit_id}"><strong>${esc(l.code)}</strong></a>
      <span class="zweitzeile">${esc(l.bezeichnung)}</span>`,
-    `${esc(l.standort)}${l.standort_beendet ? ` ${pille('beendet', 'warn')}` : ''}`,
+    `${esc(l.standort)}${l.standort_beendet ? ` ${marke('beendet', 'warn')}` : ''}`,
     String(l.tage),
-    `<span class="klein">${esc(l.inhalt ?? '—')}</span>`,
+    `<span class="leise">${esc(l.inhalt ?? '—')}</span>`,
     esc(l.zuletzt_von ?? '—'),
   ]);
-
   const inhalt = `
-${kopfzeile('Auswertung', 'Was die Mietdauer kostet und was vermutlich nicht zurückkommt.')}
-${abschnitt(
-    { titel: 'Vorhaltetage je Baustelle',
-      beitext: 'Einheitentage = Summe über alle Einheiten' },
-    vorhaltung.length === 0
-      ? `<div class="leer"><strong>Noch keine Bewegungen auf Baustellen</strong>
-          Sobald Material rausgeht und zurückkommt, steht hier die belastbare Mietdauer.</div>`
-      : tabelle(
-          [{ titel: 'Baustelle' }, { titel: 'Einheiten', zahl: true },
-            { titel: 'Einheitentage', zahl: true }, { titel: 'Längste', zahl: true }],
-          vZeilen,
-        ),
-  )}
-${abschnitt(
-    { titel: 'Vermutlicher Verlust',
-      beitext: `ab ${schwelle} Tagen oder auf beendeter Baustelle` },
-    verlust.length === 0
-      ? `<div class="leer"><strong>Nichts auffällig</strong>
-          Kein Material steht ungewöhnlich lange draußen.</div>`
-      : tabelle(
-          [{ titel: 'Einheit' }, { titel: 'Standort' }, { titel: 'Tage', zahl: true },
-            { titel: 'Inhalt' }, { titel: 'Zuletzt gebucht' }],
-          lZeilen,
-        ),
-  )}`;
-  return bueroSeite('Auswertung', '/buero/auswertung', inhalt);
-}
-
-/* ---------------------------------------------------------- Meldungen --- */
-
-export function meldungenSeite(meldungen: MeldungZeile[], alle: boolean): Response {
-  const zeilen = meldungen.map((m) => [
-    `<a href="/buero/einheit/${m.einheit_id}"><strong>${esc(m.code)}</strong></a>
-     <span class="zweitzeile">${esc(m.bezeichnung)}</span>`,
-    pille(m.art, m.art === 'ok' ? 'ok' : 'warn'),
-    `${esc(m.text ?? '')}${m.foto_schluessel
-      ? `<span class="zweitzeile"><a href="/foto/${esc(m.foto_schluessel)}">Foto ansehen</a></span>` : ''}`,
-    `${esc(m.zeit.slice(0, 16))}<span class="zweitzeile">${esc(m.wer ?? '—')}</span>`,
-    m.erledigt
-      ? pille('erledigt', 'ok')
-      : `<form method="post" action="/buero/meldung/${m.id}/erledigt">
-           <button class="knopf knopf-still" type="submit">erledigt</button></form>`,
-  ]);
-
-  const inhalt = `
-${kopfzeile('Meldungen', 'Schäden und Zustandsmeldungen von der Baustelle.',
-    `<a class="knopf knopf-zweit" href="/buero/meldungen${alle ? '' : '?alle=1'}">${
-      alle ? 'Nur offene' : 'Auch erledigte'}</a>`)}
-${abschnitt(
-    { titel: alle ? 'Alle Meldungen' : 'Offene Meldungen',
-      beitext: `${meldungen.length} Stück` },
-    meldungen.length === 0
-      ? `<div class="leer"><strong>Keine Meldungen</strong>
-          ${alle ? 'Es wurde noch nichts gemeldet.' : 'Nichts Offenes.'}</div>`
-      : tabelle(
-          [{ titel: 'Einheit' }, { titel: 'Art' }, { titel: 'Was' },
-            { titel: 'Wann' }, { titel: '' }],
-          zeilen,
-        ),
-  )}`;
-  return bueroSeite('Meldungen', '/buero/meldungen', inhalt);
-}
-
-/* -------------------------------------------------------- Mitarbeiter --- */
-
-export function mitarbeiterSeite(
-  leute: Array<{ id: number; name: string; rolle: string; aktiv: number;
-    einladung: string | null; token_hash: string | null; zuletzt_aktiv: string | null }>,
-  basisUrl: string,
-): Response {
-  const zeilen = leute.map((m) => [
-    `<strong>${esc(m.name)}</strong>${m.aktiv ? '' : ` ${pille('gesperrt', 'warn')}`}`,
-    pille(m.rolle, 'ruhig'),
-    m.token_hash
-      ? pille('eingerichtet', 'ok')
-      : m.einladung
-        ? `<a href="${esc(basisUrl)}/einladung/${esc(m.einladung)}">Einladungslink</a>
-           <span class="zweitzeile klein">einmal per WhatsApp schicken</span>`
-        : '<span class="gedaempft">—</span>',
-    esc(m.zuletzt_aktiv?.slice(0, 10) ?? '—'),
-    `<form method="post" action="/buero/mitarbeiter/${m.id}/umschalten">
-       <button class="knopf knopf-still" type="submit">${m.aktiv ? 'sperren' : 'freigeben'}</button></form>`,
-  ]);
-
-  const inhalt = `
-${kopfzeile('Mitarbeiter',
-    'Kein Passwort, kein Login: Wer den Einladungslink einmal antippt, ist auf diesem Handy dauerhaft erkannt. Handy weg oder Mitarbeiter raus → hier sperren.')}
-${abschnitt(
-    { titel: 'Alle', beitext: `${leute.filter((m) => m.aktiv).length} aktiv` },
-    leute.length === 0
-      ? `<div class="leer"><strong>Noch niemand angelegt</strong>
-          Unten den ersten Kolonnenführer eintragen.</div>`
-      : tabelle(
-          [{ titel: 'Name' }, { titel: 'Rolle' }, { titel: 'Status' },
-            { titel: 'Zuletzt' }, { titel: '' }],
-          zeilen,
-        ),
-  )}
-${abschnitt({ titel: 'Neuer Mitarbeiter', gepolstert: true }, `
-<form method="post" action="/buero/mitarbeiter">
-  <div class="feld"><label for="n">Name</label>
-    <input type="text" id="n" name="name" required></div>
-  <button class="knopf knopf-lager" type="submit">Anlegen und Einladung erzeugen</button>
-</form>`)}`;
-  return bueroSeite('Mitarbeiter', '/buero/mitarbeiter', inhalt);
+${kopfzeile('Vermuteter Verlust', `ab ${schwelle} Tagen oder auf beendeter Baustelle`)}
+<div style="margin-top:26px">
+${zeilen.length === 0
+    ? `<div class="leer"><strong>Nichts auffällig</strong></div>`
+    : tabelle(
+        [{ titel: 'Einheit' }, { titel: 'Standort' }, { titel: 'Tage', zahl: true },
+          { titel: 'Inhalt' }, { titel: 'Zuletzt gebucht' }],
+        lZeilen)}
+</div>`;
+  return gestell('Verlust', '/buero', inhalt);
 }

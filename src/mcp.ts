@@ -3,7 +3,7 @@ import {
   inhaltLesen, inventurAbschliessen, inventurStand, inventurStarten, meldungen,
   standortLesen, standorteAktiv, suche, tagAnlegen, ueberfaellig, verlust, vorhaltung,
 } from './db';
-import { formatMenge } from './views/scan';
+import { formatMenge, meldungsArt } from './views/scan';
 import { seitText, tageSeit } from './geo';
 import { gleichSicher } from './auth';
 import type { Env } from './types';
@@ -251,7 +251,7 @@ const WERKZEUGE: Werkzeug[] = [
       const zeilen = await meldungen(env, !args.alle);
       if (zeilen.length === 0) return 'Keine Meldungen.';
       return zeilen.map((m) =>
-        `${m.zeit.slice(0, 16)} · ${m.code} (${m.bezeichnung}) · ${m.art}` +
+        `${m.zeit.slice(0, 16)} · ${m.code} (${m.bezeichnung}) · ${meldungsArt(m.art)}` +
         `${m.text ? ` · "${m.text}"` : ''} · ${m.wer ?? 'unbekannt'}` +
         `${m.erledigt ? ' [erledigt]' : ''}`,
       ).join('\n');

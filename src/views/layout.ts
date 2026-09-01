@@ -7,269 +7,241 @@ export function esc(s: unknown): string {
 }
 
 /**
- * Ein Stylesheet für zwei sehr verschiedene Arbeitsplätze.
+ * Werkstattschild statt Software-Oberfläche.
  *
- * Baustelle: Handschuhe, Sonnenlicht, ein Balken Empfang. Große Trefferflächen,
- * harter Kontrast, wenig Seite. Büro: viel Zahl auf großem Schirm, also
- * Seitenleiste, klare Abschnitte und Tabellen, die man quer lesen kann.
+ * Keine Schatten, keine runden Ecken, keine Verläufe — Schwarz auf Weiß,
+ * harte Linien, und Gelb ausschließlich dort, wo etwas passieren soll. Das
+ * ist die Sprache von Baustellenbeschilderung und Maschinenblenden, und sie
+ * hat den praktischen Vorteil, dass sie bei Sonne und mit Handschuhen
+ * funktioniert: maximaler Kontrast, große Flächen, klare Kanten.
  *
- * Gemeinsam: eine Skala für Abstände, eine für Schrift, ein Satz Farben mit
- * Bedeutung. Keine Webfonts, kein Framework — die Scan-Seite bleibt unter 12 KB.
+ * Rangfolge macht hier die Schrift, nicht die Farbe: Größe, Fettung und
+ * Versalien. Farbe bleibt Signal.
  */
 const CSS = `
 :root{
-  --grund:#f2f5f8; --flaeche:#fff; --flaeche2:#f7f9fb; --flaeche3:#eef2f6;
-  --linie:#e0e6ec; --linie2:#c8d2dc;
-  --ink:#0d1620; --ink2:#4a5765; --ink3:#76838f;
-  --gruen:#0d6e3f; --gruen2:#0a5b33; --gruen-bg:#e6f4ec; --gruen-ink:#0a5b33;
-  --blau:#14508c; --blau2:#0f4074; --blau-bg:#e6eef7; --blau-ink:#0f4074;
-  --amber:#8a5804; --amber-bg:#fdf1dc; --amber-ink:#7a4d03;
-  --rot:#a52e22; --rot2:#8c261c; --rot-bg:#fbe9e7; --rot-ink:#8c261c;
-  --signal:#f5b800;
-  --r1:8px; --r2:12px; --r3:18px;
-  --schatten:0 1px 2px rgba(13,22,32,.06),0 2px 8px rgba(13,22,32,.05);
-  --schatten2:0 2px 4px rgba(13,22,32,.06),0 8px 24px rgba(13,22,32,.08);
+  --papier:#fff; --papier2:#f2f2f0; --tinte:#000; --tinte2:#565654; --tinte3:#83837f;
+  --linie:#000; --linie2:#c9c9c4;
+  --gelb:#ffd400; --rot:#d0250f; --gruen:#0a6b34;
 }
 @media (prefers-color-scheme:dark){:root{
-  --grund:#0c1117; --flaeche:#151d26; --flaeche2:#1a232e; --flaeche3:#212b37;
-  --linie:#26313d; --linie2:#374553;
-  --ink:#e7ecf2; --ink2:#a4b1bf; --ink3:#7b8898;
-  --gruen:#159154; --gruen2:#0f7b46; --gruen-bg:#0f2a1d; --gruen-ink:#6ede9f;
-  --blau:#2872c4; --blau2:#215fa5; --blau-bg:#11202f; --blau-ink:#7fb6ec;
-  --amber:#c07c0a; --amber-bg:#2a2011; --amber-ink:#f0bd63;
-  --rot:#c0442f; --rot2:#a53a28; --rot-bg:#2b1613; --rot-ink:#f0958a;
-  --schatten:0 1px 2px rgba(0,0,0,.4),0 2px 8px rgba(0,0,0,.3);
-  --schatten2:0 2px 4px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.45);
+  --papier:#0a0a0a; --papier2:#171716; --tinte:#fff; --tinte2:#b4b4b0; --tinte3:#8a8a85;
+  --linie:#fff; --linie2:#3a3a37;
+  --gelb:#ffd400; --rot:#ff6a52; --gruen:#3ec97a;
 }}
 
 *,*::before,*::after{box-sizing:border-box}
-/* Muss stehen, bevor eigene display-Regeln greifen: die Browservorgabe für
-   [hidden] ist schwächer als jedes eigene display, sonst blieben verborgene
-   Knöpfe (Scan beenden, Warteschlange, Hinweise) sichtbar. */
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--grund);color:var(--ink);
-  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+body{margin:0;background:var(--papier);color:var(--tinte);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
   font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
-h1,h2,h3{margin:0;line-height:1.2;letter-spacing:-.015em;font-weight:650}
-h1{font-size:27px} h2{font-size:19px} h3{font-size:16px}
+h1,h2,h3{margin:0;line-height:1.08;font-weight:800;letter-spacing:-.02em}
+h1{font-size:30px} h2{font-size:15px;text-transform:uppercase;letter-spacing:.1em;font-weight:800}
+h3{font-size:17px}
 p{margin:0}
-a{color:var(--blau-ink);text-decoration:none}
-a:hover{text-decoration:underline}
+a{color:var(--tinte);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px}
+.still{color:var(--tinte2)}
+.leise{color:var(--tinte3);font-size:14px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .zahl,td.zahl,th.zahl{text-align:right;font-variant-numeric:tabular-nums}
-.gedaempft{color:var(--ink3)}
-.klein{font-size:14px}
 
-/* ---------------------------------------------------------- Baustelle --- */
+/* ═══ Kopfbalken ═════════════════════════════════════════════════════ */
 
-.balken{background:var(--flaeche);border-bottom:1px solid var(--linie);
-  position:sticky;top:0;z-index:20}
-.balken .innen{max-width:600px;margin:0 auto;padding:13px 18px;
+.balken{background:var(--tinte);color:var(--papier);position:sticky;top:0;z-index:20}
+.balken .innen{max-width:640px;margin:0 auto;padding:13px 18px;
   display:flex;align-items:center;justify-content:space-between;gap:14px}
-.balken .marke{display:flex;align-items:center;gap:9px;font-weight:650;font-size:16.5px;
-  letter-spacing:-.015em;color:var(--ink)}
+.balken .marke{display:flex;align-items:center;gap:10px;
+  font-weight:800;font-size:16px;text-transform:uppercase;letter-spacing:.1em}
+.balken a{color:var(--papier);font-size:14px;text-transform:uppercase;
+  letter-spacing:.07em;font-weight:700;text-decoration:none;border-bottom:2px solid var(--gelb)}
 .zeichen{flex:0 0 auto;display:block}
-.balken a{font-size:15px;color:var(--ink2)}
 
-.sitzung{background:var(--gruen);color:#fff;position:sticky;top:53px;z-index:19}
-.sitzung .innen{max-width:600px;margin:0 auto;padding:11px 18px;
-  display:flex;align-items:center;justify-content:space-between;gap:14px;
-  font-size:15px;font-weight:600}
-.sitzung a{color:#fff;opacity:.82;font-size:14px;text-decoration:underline}
+.sitzung{background:var(--gelb);color:#000;border-bottom:3px solid #000}
+.sitzung .innen{max-width:640px;margin:0 auto;padding:11px 18px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  font-weight:800;font-size:15px}
+.sitzung a{color:#000;font-size:13px;font-weight:700}
 
-.bahn{max-width:600px;margin:0 auto;padding:20px 18px 56px}
-.bahn>*+*{margin-top:15px}
-.bahn h1+p{margin-top:7px}
-.bahn h2{margin-top:26px}
-/* Eine Auswahl endet, dann kommt etwas anderer Art — das braucht Luft,
-   sonst tippt man Abbrechen statt der letzten Baustelle. */
-.wahl+.knopf,.wahl+form{margin-top:24px}
-p+.wahl,p+form{margin-top:18px}
+.bahn{max-width:640px;margin:0 auto;padding:22px 18px 60px}
+.bahn>*+*{margin-top:18px}
+.bahn h1+p{margin-top:8px}
+.bahn h2{margin-top:32px}
 
-.tafel{background:var(--flaeche);border:1px solid var(--linie);border-radius:var(--r3);
-  padding:20px;box-shadow:var(--schatten)}
-.tafel-akzent{border-left:4px solid var(--signal)}
+/* ═══ Einheitenblatt ═════════════════════════════════════════════════ */
 
-.kennung{display:inline-block;padding:5px 10px;border-radius:7px;background:var(--flaeche3);
-  color:var(--ink2);font:650 14px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.13em}
-.titel-gross{font-size:26px;font-weight:650;line-height:1.18;letter-spacing:-.02em;margin-top:12px}
+.blatt{border:3px solid var(--linie);padding:20px}
+.kennung{display:inline-block;font:800 15px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.16em;background:var(--tinte);color:var(--papier);padding:7px 10px}
+.titel-gross{font-size:26px;font-weight:800;line-height:1.12;letter-spacing:-.02em;
+  margin-top:14px;text-wrap:balance}
 
-.stueckliste{list-style:none;padding:0;margin:16px 0 0;
-  border-top:1px solid var(--linie)}
-.stueckliste li{display:flex;align-items:baseline;gap:14px;padding:9px 0;
-  border-bottom:1px solid var(--linie);font-size:17px}
+.stueckliste{list-style:none;padding:0;margin:18px 0 0;border-top:2px solid var(--linie)}
+.stueckliste li{display:flex;align-items:baseline;gap:16px;padding:10px 0;
+  border-bottom:1px solid var(--linie2);font-size:17px}
 .stueckliste li:last-child{border-bottom:0}
-.stueckliste .anzahl{flex:0 0 62px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.stueckliste .anzahl{flex:0 0 56px;text-align:right;font-weight:800;font-size:19px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .stueckliste .was{min-width:0}
 
-.standzeit{margin-top:18px;padding-top:16px;border-top:1px solid var(--linie)}
-.standzeit .wo{font-size:20px;font-weight:650;display:block;line-height:1.25}
-.standzeit .wie-lang{color:var(--ink3);font-size:15px;margin-top:2px;display:block}
+.standzeit{margin-top:18px;padding-top:16px;border-top:2px solid var(--linie)}
+.standzeit .wo{display:block;font-size:22px;font-weight:800;line-height:1.15;
+  text-transform:uppercase;letter-spacing:-.01em}
+.standzeit .wie-lang{display:block;margin-top:3px;color:var(--tinte2);font-size:15px}
 
-/* Knöpfe: Haupt 92px, Rest 62px — mit Handschuhen sicher zu treffen. */
-button,.knopf{display:block;width:100%;min-height:62px;padding:15px 18px;margin:0;
-  font:650 19px/1.3 inherit;letter-spacing:-.01em;text-align:center;text-decoration:none;
-  border:1px solid transparent;border-radius:var(--r2);cursor:pointer;
-  -webkit-appearance:none;transition:transform .04s,filter .12s}
-.knopf small{display:block;font-size:15px;font-weight:450;opacity:.86;margin-top:3px;letter-spacing:0}
-.knopf:hover{text-decoration:none;filter:brightness(1.06)}
-button:active,.knopf:active{transform:translateY(1px)}
-form+form,form+.knopf,.knopf+form,.knopf+.knopf{margin-top:11px}
-.tafel+form,.tafel+.knopf{margin-top:16px}
+/* ═══ Knöpfe ═════════════════════════════════════════════════════════ */
 
-.knopf-haupt{background:var(--gruen);border-color:var(--gruen2);color:#fff;
-  min-height:92px;font-size:23px;box-shadow:var(--schatten2)}
-.knopf-lager{background:var(--blau);border-color:var(--blau2);color:#fff}
-.knopf-zweit{background:var(--flaeche);border-color:var(--linie2);color:var(--ink)}
-.knopf-still{background:transparent;border-color:var(--linie);color:var(--ink2);
-  min-height:50px;font-size:16px;font-weight:550}
-.knopf-warn{background:var(--rot);border-color:var(--rot2);color:#fff}
+button,.knopf{display:block;width:100%;min-height:62px;padding:16px 18px;margin:0;
+  font:800 19px/1.25 inherit;text-transform:uppercase;letter-spacing:.06em;
+  text-align:center;text-decoration:none;border:3px solid var(--linie);border-radius:0;
+  background:var(--papier);color:var(--tinte);cursor:pointer;-webkit-appearance:none}
+.knopf small{display:block;margin-top:4px;font-size:14px;font-weight:600;
+  letter-spacing:.03em;text-transform:none;opacity:.75}
+.knopf:hover{text-decoration:none}
+button:active,.knopf:active{transform:translate(1px,1px)}
+form+form,form+.knopf,.knopf+form,.knopf+.knopf{margin-top:12px}
+.blatt+form,.blatt+.knopf{margin-top:20px}
+
+.knopf-haupt{background:var(--gelb);color:#000;border-color:#000;min-height:96px;font-size:24px}
+.knopf-haupt small{color:#000;opacity:.7}
+.knopf-lager{background:var(--tinte);color:var(--papier);border-color:var(--linie)}
+.knopf-zweit{background:var(--papier);color:var(--tinte)}
+.knopf-still{display:inline-block;width:auto;border-width:0 0 2px 0;min-height:auto;
+  padding:9px 0;font-size:15px;letter-spacing:.08em;color:var(--tinte2)}
+.knopf-warn{background:var(--rot);color:#fff;border-color:var(--rot)}
 
 .wahl{list-style:none;padding:0;margin:0}
-.wahl li+li{margin-top:11px}
-.wahl .knopf{text-align:left;min-height:66px;font-size:18px;
-  display:flex;flex-direction:column;justify-content:center;gap:3px}
-.wahl .neben{font-size:14px;font-weight:450;color:var(--ink3)}
-.knopf-lager .neben{color:rgba(255,255,255,.8)}
+.wahl li+li{margin-top:12px}
+.wahl .knopf{text-align:left;min-height:66px;display:flex;flex-direction:column;
+  justify-content:center;gap:3px;letter-spacing:.02em;font-size:18px}
+.wahl .neben{font-size:14px;font-weight:600;letter-spacing:.02em;text-transform:none;
+  color:var(--tinte2)}
+.knopf-lager .neben{color:var(--papier);opacity:.72}
+.wahl+.knopf,.wahl+form{margin-top:26px}
+p+.wahl,p+form{margin-top:18px}
 
-/* --------------------------------------------------------- Meldungen --- */
+/* ═══ Meldungen und Marken ═══════════════════════════════════════════ */
 
-.notiz{border-radius:var(--r2);padding:14px 16px;border:1px solid;font-size:16px;line-height:1.45}
-.notiz strong{display:block;font-weight:650}
-.notiz-erfolg{background:var(--gruen-bg);border-color:color-mix(in srgb,var(--gruen) 26%,transparent);color:var(--gruen-ink)}
-.notiz-hinweis{background:var(--amber-bg);border-color:color-mix(in srgb,var(--amber) 30%,transparent);color:var(--amber-ink)}
-.notiz-fehler{background:var(--rot-bg);border-color:color-mix(in srgb,var(--rot) 30%,transparent);color:var(--rot-ink)}
+.notiz{border:3px solid var(--linie);padding:14px 16px;font-size:16px}
+.notiz strong{display:block;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+  font-size:15px;margin-bottom:3px}
+.notiz-erfolg{border-color:var(--linie);background:var(--gelb);color:#000}
+.notiz-hinweis{border-color:var(--linie);background:var(--papier2)}
+.notiz-fehler{border-color:var(--rot);color:var(--rot)}
+.notiz-fehler strong{color:var(--rot)}
 
-.pille{display:inline-block;padding:3px 9px;border-radius:99px;font-size:12.5px;font-weight:650;
-  letter-spacing:.02em;white-space:nowrap}
-.pille-lager{background:var(--blau-bg);color:var(--blau-ink)}
-.pille-baustelle{background:var(--amber-bg);color:var(--amber-ink)}
-.pille-warn{background:var(--rot-bg);color:var(--rot-ink)}
-.pille-ok{background:var(--gruen-bg);color:var(--gruen-ink)}
-.pille-ruhig{background:var(--flaeche3);color:var(--ink2)}
+.status{display:inline-block;padding:3px 7px;font-size:12px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.08em;border:2px solid currentColor;white-space:nowrap}
+.status-warn{color:var(--rot)}
+.status-ok{color:var(--gruen)}
+.status-ruhig{color:var(--tinte2)}
+.status-voll{background:var(--tinte);color:var(--papier);border-color:var(--tinte)}
 
-/* ------------------------------------------------------------- Büro --- */
+/* ═══ Büro ═══════════════════════════════════════════════════════════ */
 
-.buero{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
-.leiste{background:var(--flaeche);border-right:1px solid var(--linie);padding:20px 12px 32px;
-  position:sticky;top:0;height:100vh;overflow-y:auto}
-.leiste .marke{display:flex;align-items:center;gap:10px;padding:0 10px 18px;
-  font-weight:700;font-size:16.5px;letter-spacing:-.015em;color:var(--ink)}
-.leiste .marke .rolle{font-weight:500;color:var(--ink3)}
-.leiste .gruppe{display:block;margin-top:18px;padding:0 10px 7px;font-size:11.5px;
-  font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3)}
-.leiste .gruppe:first-child{margin-top:0}
-.leiste a{display:block;padding:9px 10px;border-radius:var(--r1);color:var(--ink2);
-  font-size:15px;font-weight:550}
-.leiste a:hover{background:var(--flaeche3);color:var(--ink);text-decoration:none}
-.leiste a.aktiv{background:var(--blau-bg);color:var(--blau-ink);font-weight:650}
-.leiste .trenner{display:block;height:1px;background:var(--linie);margin:20px 10px 12px}
-.leiste a.nebensache{font-size:14px;color:var(--ink3)}
+.buerokopf{background:var(--tinte);color:var(--papier);position:sticky;top:0;z-index:20}
+.buerokopf .oben{max-width:1080px;margin:0 auto;padding:14px 22px 0;
+  display:flex;align-items:center;justify-content:space-between;gap:16px}
+.buerokopf .marke{display:flex;align-items:center;gap:10px;font-weight:800;
+  font-size:17px;text-transform:uppercase;letter-spacing:.1em}
+.buerokopf .abmelden{color:var(--papier);font-size:13px;text-transform:uppercase;
+  letter-spacing:.07em;font-weight:700;text-decoration:none;opacity:.7}
+.buerokopf .abmelden:hover{opacity:1}
+.reiter{max-width:1080px;margin:0 auto;padding:12px 22px 0;display:flex;gap:26px;
+  overflow-x:auto;scrollbar-width:none}
+.reiter::-webkit-scrollbar{display:none}
+.reiter a{color:var(--papier);opacity:.62;font-size:15px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.09em;text-decoration:none;white-space:nowrap;
+  padding:0 0 11px;border-bottom:4px solid transparent}
+.reiter a:hover{opacity:.9}
+.reiter a.aktiv{opacity:1;border-bottom-color:var(--gelb)}
 
-.inhalt{padding:30px 34px 72px;max-width:1120px;min-width:0}
+.inhalt{max-width:1080px;margin:0 auto;padding:30px 22px 80px}
 .kopfzeile{display:flex;align-items:flex-start;justify-content:space-between;
-  gap:20px;flex-wrap:wrap;margin-bottom:24px}
-.kopfzeile .unter{color:var(--ink3);font-size:15px;margin-top:5px;max-width:60ch}
-.kopfzeile .werkzeuge{display:flex;gap:10px;flex-wrap:wrap}
-.kopfzeile .werkzeuge .knopf{width:auto;min-height:42px;padding:9px 16px;font-size:15px}
+  gap:20px;flex-wrap:wrap;padding-bottom:18px;border-bottom:3px solid var(--linie)}
+.kopfzeile .unter{color:var(--tinte2);font-size:15px;margin-top:7px;max-width:62ch}
+.kopfzeile .werkzeuge{display:flex;gap:12px;flex-wrap:wrap}
+.kopfzeile .werkzeuge .knopf{width:auto;min-height:40px;padding:8px 16px;font-size:13px}
 
-@media (max-width:900px){
-  .buero{grid-template-columns:1fr}
-  .leiste{position:static;height:auto;border-right:0;border-bottom:1px solid var(--linie);
-    padding:12px 0 0}
-  .leiste .marke{padding:0 16px 11px}
-  /* Auf dem Handy wird aus der gruppierten Liste eine einzige Rolleiste —
-     drei umbrechende Reihen schieben den Inhalt sonst aus dem Bild. */
-  .leiste .gruppe{display:none}
-  .leiste .navi{display:flex;align-items:center;gap:7px;overflow-x:auto;padding:0 16px 12px;
-    scrollbar-width:none;-webkit-overflow-scrolling:touch}
-  .leiste .navi::-webkit-scrollbar{display:none}
-  .leiste .navi a{white-space:nowrap;padding:8px 15px;border-radius:99px;
-    background:var(--flaeche3);font-size:14.5px}
-  .leiste .navi a.aktiv{background:var(--blau);color:#fff}
-  .leiste .trenner{flex:0 0 1px;height:22px;margin:0 3px}
-  .inhalt{padding:20px 16px 64px}
-}
+/* Zahlenreihe: nur Zahl und Wort, getrennt durch Linien. Keine Kacheln. */
+.zahlen{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  border-bottom:3px solid var(--linie);margin-bottom:34px}
+.zahlen>div{padding:20px 20px 20px 0;border-right:1px solid var(--linie2)}
+.zahlen>div:last-child{border-right:0}
+.zahlen .wert{font-size:44px;font-weight:800;line-height:.95;letter-spacing:-.04em}
+.zahlen .achtung .wert{color:var(--rot)}
+.zahlen .wort{margin-top:8px;font-size:13px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.09em}
+.zahlen .zusatz{margin-top:3px;font-size:13px;color:var(--tinte2)}
 
-/* ----------------------------------------------------------- Kacheln --- */
-
-.kacheln{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
-  margin-bottom:26px}
-.kachel{background:var(--flaeche);border:1px solid var(--linie);border-radius:var(--r2);
-  padding:16px 18px;box-shadow:var(--schatten);position:relative;overflow:hidden}
-.kachel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--linie2)}
-.kachel-blau::before{background:var(--blau)}
-.kachel-gruen::before{background:var(--gruen)}
-.kachel-amber::before{background:var(--amber)}
-.kachel-rot::before{background:var(--rot)}
-.kachel .wert{font-size:33px;font-weight:700;line-height:1.05;letter-spacing:-.03em}
-.kachel-rot .wert{color:var(--rot-ink)}
-.kachel .schild{font-size:14px;color:var(--ink2);margin-top:5px;font-weight:550}
-.kachel .zusatz{font-size:13px;color:var(--ink3);margin-top:3px}
-
-/* ------------------------------------------------ Abschnitte, Tabellen --- */
-
-.abschnitt{background:var(--flaeche);border:1px solid var(--linie);border-radius:var(--r2);
-  box-shadow:var(--schatten);margin-bottom:22px;overflow:hidden}
-.abschnitt>.kopf{display:flex;align-items:baseline;justify-content:space-between;gap:14px;
-  flex-wrap:wrap;padding:15px 18px;border-bottom:1px solid var(--linie);background:var(--flaeche2)}
-.abschnitt>.kopf h2{font-size:16.5px}
-.abschnitt>.kopf .beitext{font-size:13.5px;color:var(--ink3);font-weight:450}
-.abschnitt>.koerper{padding:18px}
-.abschnitt>.koerper>p:first-child{margin-top:0}
+.block{margin-bottom:44px}
+.block>.kopf{display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+  flex-wrap:wrap;padding-bottom:9px;border-bottom:3px solid var(--linie);margin-bottom:0}
+.block>.kopf .beitext{font-size:13px;color:var(--tinte2);text-transform:none;letter-spacing:0;
+  font-weight:400}
+.block>.koerper{padding-top:18px}
 
 table{width:100%;border-collapse:collapse;font-size:15px}
-thead th{text-align:left;padding:10px 18px;font-size:12px;font-weight:700;letter-spacing:.06em;
-  text-transform:uppercase;color:var(--ink3);background:var(--flaeche2);
-  border-bottom:1px solid var(--linie);white-space:nowrap}
-tbody td{padding:12px 18px;border-bottom:1px solid var(--linie);vertical-align:top}
-tbody tr:last-child td{border-bottom:0}
-tbody tr:hover{background:var(--flaeche2)}
-td .zweitzeile{display:block;color:var(--ink3);font-size:13.5px;margin-top:2px}
+thead th{text-align:left;padding:10px 14px 10px 0;font-size:12px;font-weight:800;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--tinte2);
+  border-bottom:2px solid var(--linie);white-space:nowrap}
+tbody td{padding:13px 14px 13px 0;border-bottom:1px solid var(--linie2);vertical-align:top}
+tbody tr:hover{background:var(--papier2)}
+td .zweitzeile{display:block;color:var(--tinte2);font-size:13px;margin-top:2px}
 td form{display:inline}
-td .knopf{width:auto;min-height:34px;padding:5px 12px;font-size:13.5px;font-weight:600}
+td .knopf{width:auto;min-height:30px;padding:4px 10px;font-size:12px;border-width:2px}
 .rollrahmen{overflow-x:auto}
 
-@media (max-width:720px){
+@media (max-width:760px){
   .stapel thead{display:none}
-  .stapel tbody tr{display:block;padding:13px 16px;border-bottom:1px solid var(--linie)}
+  .stapel tbody tr{display:block;padding:14px 0;border-bottom:2px solid var(--linie)}
   .stapel tbody tr:hover{background:transparent}
   .stapel tbody td{display:flex;gap:16px;justify-content:space-between;align-items:baseline;
     padding:3px 0;border:0;text-align:right}
-  .stapel tbody td::before{content:attr(data-l);color:var(--ink3);font-size:13px;font-weight:650;
-    text-align:left;flex:0 0 auto}
-  .stapel tbody td:first-child{display:block;text-align:left;font-size:16px;
-    font-weight:650;padding-bottom:8px}
+  .stapel tbody td::before{content:attr(data-l);color:var(--tinte2);font-size:12px;
+    font-weight:800;text-transform:uppercase;letter-spacing:.07em;text-align:left;flex:0 0 auto}
+  .stapel tbody td:first-child{display:block;text-align:left;font-size:17px;
+    font-weight:800;padding-bottom:8px}
   .stapel tbody td:first-child::before{display:none}
-  .stapel tbody td:first-child .zweitzeile{font-weight:450}
+  .stapel tbody td:first-child .zweitzeile{font-weight:400}
   .stapel tbody td:empty{display:none}
+  .inhalt{padding:22px 16px 70px}
+  .zahlen>div{padding:16px 14px 16px 0}
+  .zahlen .wert{font-size:34px}
 }
 
-.leer{padding:34px 18px;text-align:center;color:var(--ink3)}
-.leer strong{display:block;color:var(--ink2);font-size:16px;margin-bottom:5px}
+.leer{padding:30px 0;color:var(--tinte2);border-bottom:1px solid var(--linie2)}
+.leer strong{display:block;color:var(--tinte);font-size:16px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
 
-/* --------------------------------------------------------- Formulare --- */
+/* ═══ Formulare ══════════════════════════════════════════════════════ */
 
-label{display:block;font-weight:600;font-size:14.5px;margin-bottom:6px;color:var(--ink2)}
+label{display:block;font-weight:800;font-size:12px;text-transform:uppercase;
+  letter-spacing:.09em;margin-bottom:6px;color:var(--tinte2)}
 input[type=text],input[type=password],input[type=number],input[type=file],select,textarea{
-  width:100%;min-height:48px;padding:11px 13px;font:16px inherit;color:var(--ink);
-  background:var(--flaeche);border:1px solid var(--linie2);border-radius:var(--r1);
-  transition:border-color .12s,box-shadow .12s}
-input:focus,select:focus,textarea:focus{outline:0;border-color:var(--blau);
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--blau) 18%,transparent)}
-.feld{margin-bottom:15px}
-.feld:last-of-type{margin-bottom:19px}
-.felder-zwei{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.filter{display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
-.filter input{max-width:340px;min-height:42px}
-.filter .knopf{width:auto;min-height:42px;padding:8px 16px;font-size:15px}
+  width:100%;min-height:50px;padding:12px 13px;font:17px inherit;color:var(--tinte);
+  background:var(--papier);border:2px solid var(--linie);border-radius:0}
+input:focus,select:focus,textarea:focus{outline:3px solid var(--gelb);outline-offset:-1px}
+.feld{margin-bottom:16px}
+.feld:last-of-type{margin-bottom:20px}
+.felder-zwei{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.filter{display:flex;gap:12px;align-items:center;margin:20px 0;flex-wrap:wrap}
+.filter input{max-width:320px;min-height:42px}
+.filter .knopf{width:auto;min-height:42px;padding:8px 16px;font-size:13px}
 
-/* Fortschritt der Inventur */
-.balkenanzeige{height:10px;border-radius:99px;background:var(--flaeche3);overflow:hidden;margin:12px 0 9px}
-.balkenanzeige>span{display:block;height:100%;background:var(--gruen);border-radius:99px;
-  transition:width .3s}
+.balkenanzeige{height:14px;border:2px solid var(--linie);margin:14px 0 10px}
+.balkenanzeige>span{display:block;height:100%;background:var(--gelb)}
 
-.fussnote{margin-top:26px;text-align:center;color:var(--ink3);font-size:14px}
+.fussnote{margin-top:30px;color:var(--tinte2);font-size:14px}
+
+/* Im Dunkeln wäre der umgekehrte Balken die hellste Fläche auf dem Schirm —
+   also bleibt er schwarz und trennt sich über die Linie. */
+@media (prefers-color-scheme:dark){
+  .balken,.buerokopf{background:var(--papier);color:var(--tinte);
+    border-bottom:3px solid var(--tinte)}
+  .balken a,.buerokopf .abmelden,.reiter a{color:var(--tinte)}
+  .knopf-lager{background:var(--tinte);color:var(--papier)}
+}
 `;
 
 export interface SeiteOpts {
@@ -291,8 +263,7 @@ export function seite(inhalt: string, opts: SeiteOpts): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f2f5f8" media="(prefers-color-scheme:light)">
-<meta name="theme-color" content="#0c1117" media="(prefers-color-scheme:dark)">
+<meta name="theme-color" content="#000000">
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" href="${FAVICON}">
 <link rel="apple-touch-icon" href="${FAVICON}">
@@ -309,7 +280,7 @@ ${opts.scripte ?? ''}
 /** Kopfbalken der Baustellen-Seiten. */
 export function kopf(titel: string = NAME, zurueck?: { href: string; text: string }): string {
   return `<header class="balken"><div class="innen">
-    <span class="marke">${zeichen(22)}${esc(titel)}</span>
+    <span class="marke">${zeichen(21, 'currentColor')}${esc(titel)}</span>
     ${zurueck ? `<a href="${esc(zurueck.href)}">${esc(zurueck.text)}</a>` : ''}
   </div></header>`;
 }
@@ -321,7 +292,7 @@ export function html(inhalt: string, status = 200, extraHeaders: HeadersInit = {
   });
 }
 
-/* ------------------------------------------------------- Bausteine --- */
+/* ───────────────────────────────────────────────────────── Bausteine ── */
 
 export type NotizArt = 'erfolg' | 'hinweis' | 'fehler';
 
@@ -330,8 +301,8 @@ export function notiz(art: NotizArt, titel: string, text?: string): string {
     text ? esc(text) : ''}</div>`;
 }
 
-export function pille(text: string, art: 'lager' | 'baustelle' | 'warn' | 'ok' | 'ruhig'): string {
-  return `<span class="pille pille-${art}">${esc(text)}</span>`;
+export function marke(text: string, art: 'warn' | 'ok' | 'ruhig' | 'voll' = 'ruhig'): string {
+  return `<span class="status status-${art}">${esc(text)}</span>`;
 }
 
 export interface Spalte {
@@ -343,53 +314,52 @@ export interface Spalte {
 /**
  * Tabelle mit Stapelfallback.
  *
- * Unter 720 px klappt jede Zeile zu einer Karte aus Beschriftung und Wert —
- * die Spaltenüberschrift wandert per data-l an die Zelle. Deshalb ist der
- * Umweg über diesen Helfer nötig: von Hand vergisst man das data-l genau
- * einmal, und dann steht in der Handy-Ansicht ein Wert ohne Bezeichnung.
+ * Unter 760 px klappt jede Zeile zu einem Block aus Beschriftung und Wert —
+ * die Spaltenüberschrift wandert per data-l an die Zelle. Deshalb der Umweg
+ * über diesen Helfer: von Hand vergisst man das data-l genau einmal, und dann
+ * steht in der Handy-Ansicht ein Wert ohne Bezeichnung.
  */
 export function tabelle(spalten: Spalte[], zeilen: string[][], leerText?: string): string {
   if (zeilen.length === 0) {
     return `<div class="leer"><strong>Nichts da</strong>${esc(leerText ?? '')}</div>`;
   }
-  const kopf = spalten.map((s) =>
+  const kopfzellen = spalten.map((s) =>
     `<th${s.zahl ? ' class="zahl"' : ''}>${esc(s.titel)}</th>`).join('');
   const koerper = zeilen.map((z) => `<tr>${z.map((zelle, i) => {
     const s = spalten[i];
     return `<td${s?.zahl ? ' class="zahl"' : ''} data-l="${esc(s?.titel ?? '')}">${zelle}</td>`;
   }).join('')}</tr>`).join('');
   return `<div class="rollrahmen"><table class="stapel">
-    <thead><tr>${kopf}</tr></thead><tbody>${koerper}</tbody></table></div>`;
+    <thead><tr>${kopfzellen}</tr></thead><tbody>${koerper}</tbody></table></div>`;
 }
 
-export interface AbschnittOpts {
+export interface BlockOpts {
   titel: string;
   beitext?: string;
-  /** Tabellen sitzen bündig im Rahmen, Formulare brauchen Polster. */
+  /** Tabellen sitzen direkt unter der Linie, Formulare brauchen Abstand. */
   gepolstert?: boolean;
 }
 
-export function abschnitt(o: AbschnittOpts, inhalt: string): string {
-  return `<section class="abschnitt">
+export function block(o: BlockOpts, inhalt: string): string {
+  return `<section class="block">
     <div class="kopf"><h2>${esc(o.titel)}</h2>${
       o.beitext ? `<span class="beitext">${esc(o.beitext)}</span>` : ''}</div>
     ${o.gepolstert ? `<div class="koerper">${inhalt}</div>` : inhalt}
   </section>`;
 }
 
-export interface KachelOpts {
+export interface ZahlOpts {
   wert: string | number;
-  schild: string;
+  wort: string;
   zusatz?: string;
-  ton?: 'blau' | 'gruen' | 'amber' | 'rot';
+  achtung?: boolean;
 }
 
-export function kacheln(liste: KachelOpts[]): string {
-  return `<div class="kacheln">${liste.map((k) => `<div class="kachel${
-    k.ton ? ` kachel-${k.ton}` : ''}">
-    <div class="wert">${esc(k.wert)}</div>
-    <div class="schild">${esc(k.schild)}</div>
-    ${k.zusatz ? `<div class="zusatz">${esc(k.zusatz)}</div>` : ''}
+export function zahlen(liste: ZahlOpts[]): string {
+  return `<div class="zahlen">${liste.map((z) => `<div${z.achtung ? ' class="achtung"' : ''}>
+    <div class="wert">${esc(z.wert)}</div>
+    <div class="wort">${esc(z.wort)}</div>
+    ${z.zusatz ? `<div class="zusatz">${esc(z.zusatz)}</div>` : ''}
   </div>`).join('')}</div>`;
 }
 
