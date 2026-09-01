@@ -1,24 +1,35 @@
-import { esc, html, kopf, seite } from './layout';
+import { esc, html, kopf, notiz, seite } from './layout';
 import { sitzungsBanner } from './scan';
 import type { InventurStand } from '../db';
 import type { Standort } from '../types';
 import type { Sitzung } from '../auth';
 
-export function inventurAuswahl(standorte: Standort[], offene: Array<{ id: number; standort: string }>): Response {
+export function inventurAuswahl(
+  standorte: Standort[], offene: Array<{ id: number; standort: string }>,
+): Response {
   const inhalt = `
 <h1>Inventur</h1>
-${offene.length ? `<h2>Läuft gerade</h2><ul class="liste">${offene.map((o) =>
-    `<li><a class="knopf knopf-haupt" href="/inventur/${o.id}">${esc(o.standort)}</a></li>`,
+<p class="gedaempft">Standort abtappen, live sehen was fehlt.</p>
+${offene.length ? `
+<h2 style="margin-top:22px">Läuft gerade</h2>
+<ul class="wahl">${offene.map((o) =>
+    `<li><a class="knopf knopf-haupt" href="/inventur/${o.id}">
+       <span>${esc(o.standort)}</span>
+       <span class="neben" style="color:rgba(255,255,255,.82)">fortsetzen</span></a></li>`,
   ).join('')}</ul>` : ''}
-<h2>Neu starten</h2>
-<p style="color:#5a6472">Danach jede Einheit antippen. Was am Ende offen bleibt, ist die Fehlliste.</p>
-<ul class="liste">${standorte.map((s) =>
-    `<li><form method="post" action="/inventur">
-       <input type="hidden" name="standort_id" value="${s.id}">
-       <button class="knopf knopf-zweit" type="submit">${esc(s.name)}</button></form></li>`,
-  ).join('')}</ul>
+<h2 style="margin-top:22px">Neu starten</h2>
+${standorte.length === 0
+    ? `<div class="tafel"><p><strong>Keine Standorte angelegt.</strong></p></div>`
+    : `<ul class="wahl">${standorte.map((s) =>
+        `<li><form method="post" action="/inventur">
+           <input type="hidden" name="standort_id" value="${s.id}">
+           <button class="knopf knopf-zweit" type="submit">${esc(s.name)}</button>
+         </form></li>`).join('')}</ul>`}
 <a class="knopf knopf-still" href="/">Übersicht</a>`;
-  return html(seite(inhalt, { titel: 'Inventur', kopf: kopf('Inventur', { href: '/', text: 'Übersicht' }) }));
+  return html(seite(inhalt, {
+    titel: 'Inventur',
+    kopf: kopf('Inventur', { href: '/', text: 'Übersicht' }),
+  }));
 }
 
 export function inventurSeite(stand: InventurStand, sitzung: Sitzung | null): Response {
@@ -32,43 +43,56 @@ export function inventurSeite(stand: InventurStand, sitzung: Sitzung | null): Re
   const anteil = gesamt > 0 ? Math.round((gefunden.length / gesamt) * 100) : 100;
   const beendet = i.beendet_am !== null;
 
+  const liste = (
+    eintraege: Array<{ code: string; bezeichnung: string }>, verlinkt: boolean,
+  ) => `<ul class="stueckliste">${eintraege.map((x) => `<li>
+      <span class="anzahl" style="flex-basis:78px">${verlinkt
+        ? `<a href="/t/${esc(x.code)}"><span class="kennung">${esc(x.code)}</span></a>`
+        : `<span class="kennung">${esc(x.code)}</span>`}</span>
+      <span class="was">${esc(x.bezeichnung)}</span></li>`).join('')}</ul>`;
+
   const inhalt = `
 <h1>${esc(i.standort ?? '')}</h1>
-<div class="karte">
-  <p class="gross">${gefunden.length} von ${gesamt}</p>
-  <div style="background:#e6e9ee;border-radius:99px;height:14px;overflow:hidden;margin:10px 0">
-    <div style="background:#0a7d3c;height:100%;width:${anteil}%"></div>
-  </div>
-  <p style="color:#5a6472;margin:0">${fehlend.length === 0
-    ? 'Alles gefunden.' : `${fehlend.length} ${fehlend.length === 1 ? 'fehlt' : 'fehlen'} noch`}</p>
+<p class="gedaempft">Inventur ${i.id}${beendet ? ' · abgeschlossen' : ''}</p>
+
+<article class="tafel tafel-akzent">
+  <p style="font-size:32px;font-weight:700;letter-spacing:-.03em;line-height:1.1">
+    ${gefunden.length} <span style="color:var(--ink3);font-weight:550">von ${gesamt}</span></p>
+  <div class="balkenanzeige"><span style="width:${anteil}%"></span></div>
+  <p class="gedaempft">${fehlend.length === 0
+    ? 'Alles gefunden.'
+    : `${fehlend.length} ${fehlend.length === 1 ? 'fehlt' : 'fehlen'} noch`}</p>
   ${i.soll_anzahl !== null && i.soll_anzahl !== gesamt
-    ? `<p style="color:#5a6472;margin:6px 0 0;font-size:15px">Beim Start waren
+    ? `<p class="gedaempft klein" style="margin-top:6px">Beim Start waren
         ${i.soll_anzahl} Einheiten hier verbucht.</p>` : ''}
-</div>
+</article>
 
 ${beendet
-  ? `<div class="hinweis">Abgeschlossen am ${esc(i.beendet_am!.slice(0, 16))}.</div>`
-  : `<p style="color:#5a6472">Einfach die Tags antippen — jede Einheit wird beim Scannen erfasst.</p>`}
+    ? notiz('hinweis', 'Abgeschlossen', ` am ${i.beendet_am!.slice(0, 16)}.`)
+    : notiz('erfolg', 'Läuft', ' Einfach die Tags antippen — jede Einheit wird beim Scannen erfasst.')}
 
-${woanders.length ? `<h2>Hier gefunden, im System woanders (${woanders.length})</h2>
-<ul class="inhalt">${woanders.map((g) =>
-    `<li><span class="code">${esc(g.code)}</span> ${esc(g.bezeichnung)}</li>`).join('')}</ul>
-<p style="color:#5a6472;font-size:15px">Diese Einheiten wurden automatisch hierher gebucht.</p>` : ''}
+${woanders.length ? `
+<article class="tafel">
+  <h2>Hier gefunden, im System woanders</h2>
+  <p class="gedaempft klein" style="margin-top:4px">Automatisch hierher gebucht.</p>
+  ${liste(woanders, false)}
+</article>` : ''}
 
-<h2>Fehlt noch (${fehlend.length})</h2>
-${fehlend.length === 0
-  ? '<p class="leer">Nichts offen.</p>'
-  : `<ul class="inhalt">${fehlend.map((f) =>
-      `<li><a href="/t/${esc(f.code)}"><span class="code">${esc(f.code)}</span></a>
-        ${esc(f.bezeichnung)}</li>`).join('')}</ul>`}
+<article class="tafel">
+  <h2>Fehlt noch (${fehlend.length})</h2>
+  ${fehlend.length === 0
+    ? '<p class="gedaempft" style="margin-top:8px">Nichts offen.</p>'
+    : liste(fehlend, true)}
+</article>
 
-<h2>Erfasst (${gefunden.length})</h2>
-${gefunden.length === 0
-  ? '<p class="leer">Noch nichts.</p>'
-  : `<ul class="inhalt">${gefunden.slice(0, 60).map((g) =>
-      `<li><span class="code">${esc(g.code)}</span> ${esc(g.bezeichnung)}</li>`).join('')}</ul>`}
+<article class="tafel">
+  <h2>Erfasst (${gefunden.length})</h2>
+  ${gefunden.length === 0
+    ? '<p class="gedaempft" style="margin-top:8px">Noch nichts.</p>'
+    : liste(gefunden.slice(0, 60), false)}
+</article>
 
-${beendet ? '' : `<form method="post" action="/inventur/${i.id}/abschliessen" style="margin-top:24px">
+${beendet ? '' : `<form method="post" action="/inventur/${i.id}/abschliessen">
   <button class="knopf knopf-warn" type="submit">Inventur abschließen</button></form>`}
 <a class="knopf knopf-still" href="/">Übersicht</a>`;
 

@@ -22,11 +22,12 @@ function host(url: string): string {
 export function druckbogen(etiketten: DruckEtikett[], firma: string): string {
   const karten = etiketten.map((e) => `
 <div class="etikett">
-  <div class="qr">${qrSvg(e.url, 28)}</div>
+  <div class="qr">${qrSvg(e.url, 27)}</div>
   <div class="txt">
     <div class="code">${esc(e.code)}</div>
     <div class="bez">${esc(e.bezeichnung)}</div>
-    <div class="firma">${esc(host(e.url))} · ${esc(firma)}</div>
+    <div class="host">${esc(host(e.url))}</div>
+    <div class="firma">${esc(firma)}</div>
   </div>
 </div>`).join('');
 
@@ -34,25 +35,38 @@ export function druckbogen(etiketten: DruckEtikett[], firma: string): string {
 <html lang="de"><head><meta charset="utf-8">
 <title>Etiketten — ${etiketten.length} Stück</title>
 <style>
-@page{size:A4;margin:10mm}
-body{margin:0;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#000;background:#fff}
-.hinweis{padding:12px;background:#eef1f5;border-radius:8px;margin-bottom:12px;font-size:13px}
+@page{size:A4;margin:9mm}
+body{margin:0;color:#000;background:#fff;
+  font:12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.anleitung{padding:14px 16px;background:#f2f5f8;border:1px solid #d9e0e7;border-radius:10px;
+  margin-bottom:14px;font-size:13px;line-height:1.55;max-width:170mm}
+.anleitung h1{font-size:15px;margin:0 0 6px}
+.anleitung ol{margin:6px 0 0;padding-left:18px}
+.anleitung li{margin-bottom:3px}
 .bogen{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm}
-.etikett{display:flex;gap:3mm;align-items:center;border:1px dashed #999;border-radius:3mm;
-  padding:3mm;height:34mm;break-inside:avoid;page-break-inside:avoid}
+.etikett{display:flex;gap:3.5mm;align-items:center;border:1px dashed #9aa5b1;border-radius:2.5mm;
+  padding:3mm;height:33mm;break-inside:avoid;page-break-inside:avoid;overflow:hidden}
 .qr{flex:0 0 auto;line-height:0}
-.txt{min-width:0}
+.txt{min-width:0;display:flex;flex-direction:column;gap:1.5mm}
 .code{font:700 15px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em}
-.bez{font-size:11px;margin-top:3px;overflow:hidden;display:-webkit-box;
-  -webkit-line-clamp:2;-webkit-box-orient:vertical}
-.firma{font-size:8px;color:#444;margin-top:4px}
-@media print{.hinweis{display:none}.etikett{border-color:#ccc}}
+.bez{font-size:10.5px;line-height:1.25;overflow:hidden;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;color:#1c2733}
+.host{font-size:8px;color:#5a6672;letter-spacing:.02em}
+.firma{font-size:7.5px;color:#7b8794}
+@media print{.anleitung{display:none}.etikett{border-color:#c9d1d9}}
 </style></head>
 <body>
-<div class="hinweis"><strong>${etiketten.length} Etiketten.</strong>
-  Auf wetterfestes Material drucken. Der NFC-Chip bekommt dieselbe URL wie der
-  QR-Code — beim Programmieren mit NFC Tools oder NXP TagWriter als URI-Record
-  schreiben und anschließend schreibschützen.</div>
+<div class="anleitung">
+  <h1>${etiketten.length} Etiketten</h1>
+  <ol>
+    <li>Auf wetterfestes Material drucken — Papier überlebt eine Gerüstbau-Baustelle nicht.</li>
+    <li>Den NFC-Chip mit <strong>derselben URL</strong> beschreiben, die im QR steckt
+        (NFC Tools oder NXP TagWriter, Typ <strong>URI-Record</strong>).</li>
+    <li>Chip anschließend <strong>schreibschützen</strong>, damit niemand eine fremde
+        URL darauflegen kann.</li>
+    <li>On-Metal-Tags verwenden — an Stahl-Gitterboxen funktionieren normale Chips nicht.</li>
+  </ol>
+</div>
 <div class="bogen">${karten}</div>
 </body></html>`;
 }

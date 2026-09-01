@@ -12,7 +12,8 @@
     "db:remote": "wrangler d1 migrations apply nfclager --remote",
     "seed:local": "wrangler d1 execute nfclager --local --file=./seed.sql",
     "build": "wrangler deploy --dry-run --outdir=dist",
-    "bundle": "wrangler deploy --dry-run --outdir=deploy --minify"
+    "bundle": "wrangler deploy --dry-run --outdir=deploy --minify && node -e \"require('fs').copyFileSync('deploy/index.js','deploy/worker.js')\"",
+    "screenshots": "node tools/screenshots.mjs"
   },
   "dependencies": {
     "hono": "^4.6.14",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241230.0",
+    "playwright": "^1.62.1",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8",
     "wrangler": "^3.99.0"

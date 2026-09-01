@@ -1,4 +1,4 @@
-import { html, seite } from './layout';
+import { html, kopf, notiz, seite } from './layout';
 
 /**
  * Client-Schicht fuer den Baustellenbetrieb.
@@ -102,8 +102,8 @@ export const APP_JS = `
       }
     }
     document.body.innerHTML =
-      '<div class="wrap"><div class="erfolg"><strong>Gespeichert' +
-      (name ? ': ' + name : '') + '</strong><br>' +
+      '<div class="bahn"><div class="notiz notiz-erfolg"><strong>Gespeichert' +
+      (name ? ': ' + name : '') + '</strong>' +
       'Kein Netz — wird übertragen, sobald wieder Empfang da ist.</div>' +
       '<a class="knopf knopf-haupt" href="/">Weiter</a></div>';
   }
@@ -170,11 +170,11 @@ self.addEventListener('fetch', function (ev) {
  */
 export function offlineSeite(): Response {
   const inhalt = `
-<div class="hinweis" id="kein-netz"><strong>Kein Netz.</strong>
-  Buchungen werden gespeichert und später übertragen.</div>
+${notiz('hinweis', 'Kein Netz',
+    ' Buchungen werden gespeichert und übertragen, sobald wieder Empfang da ist.')}
 <div id="einheit"></div>
 <div id="knoepfe"></div>
-<p class="fuss" id="wgl-wartestand" hidden></p>`;
+<p class="fussnote" id="wgl-wartestand" hidden></p>`;
 
   const skript = `<script src="/app.js"></script>
 <script>
@@ -189,18 +189,24 @@ export function offlineSeite(): Response {
   function esc(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
   if (!e) {
-    ziel.innerHTML = '<div class="karte"><span class="code">' + esc(code) + '</span>' +
-      '<p style="margin-top:12px">Zu diesem Tag liegen keine Daten auf dem Handy. ' +
-      'Sobald wieder Empfang da ist, die Seite neu laden.</p></div>';
+    ziel.innerHTML = '<article class="tafel"><span class="kennung">' + esc(code) + '</span>' +
+      '<p style="margin-top:14px">Zu diesem Tag liegen keine Daten auf dem Handy. ' +
+      'Sobald wieder Empfang da ist, die Seite neu laden.</p></article>';
     return;
   }
 
-  var inhalt = e.i ? '<ul class="inhalt">' + e.i.split(', ').map(function (z) {
-    return '<li>' + esc(z) + '</li>'; }).join('') + '</ul>' : '';
-  ziel.innerHTML = '<div class="karte"><span class="code">' + esc(e.c) + '</span>' +
-    '<p class="gross" style="margin-top:10px">' + esc(e.b) + '</p>' + inhalt +
-    '<div class="ort"><b>' + esc(e.sn || '') + '</b>' +
-    '<span class="seit">Stand vom letzten Empfang</span></div></div>';
+  var inhalt = e.i ? '<ul class="stueckliste">' + e.i.split(', ').map(function (z) {
+    var t = z.match(/^(\S+×)\s*(.*)$/);
+    return t
+      ? '<li><span class="anzahl">' + esc(t[1]) + '</span><span class="was">' + esc(t[2]) + '</span></li>'
+      : '<li><span class="was">' + esc(z) + '</span></li>';
+  }).join('') + '</ul>' : '';
+
+  ziel.innerHTML = '<article class="tafel tafel-akzent">' +
+    '<span class="kennung">' + esc(e.c) + '</span>' +
+    '<h1 class="titel-gross">' + esc(e.b) + '</h1>' + inhalt +
+    '<div class="standzeit"><span class="wo">' + esc(e.sn || '') + '</span>' +
+    '<span class="wie-lang">Stand vom letzten Empfang</span></div></article>';
 
   var kandidaten = (s.standorte || []).filter(function (st) { return st.id !== e.s; });
   var lager = kandidaten.filter(function (st) { return st.typ === 'lager'; });
@@ -224,5 +230,9 @@ export function offlineSeite(): Response {
 })();
 </script>`;
 
-  return html(seite(inhalt, { titel: 'Kein Netz', scripte: skript }));
+  return html(seite(inhalt, {
+    titel: 'Kein Netz',
+    kopf: kopf('Lager'),
+    scripte: skript,
+  }));
 }

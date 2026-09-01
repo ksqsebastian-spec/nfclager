@@ -15,7 +15,7 @@ import {
 } from './codes';
 import { entfernungKm } from './geo';
 import { mcpBehandeln } from './mcp';
-import { esc, html, kopf, seite } from './views/layout';
+import { esc, html, kopf, notiz, seite } from './views/layout';
 import {
   aktionenFuer, einheitSeite, fremdSeite, inventurAktion, meldenSeite, sitzungsBanner,
   unbekannterTag, wohinSeite,
@@ -38,12 +38,12 @@ app.get('/', async (c) => {
   if (!ma) {
     if (await istBuero(c.req.raw, c.env)) return c.redirect('/buero');
     return html(seite(`
-<div class="karte">
+<article class="tafel tafel-akzent">
   <h1>${esc(c.env.FIRMA)}</h1>
-  <p>Lagerverwaltung. Zum Buchen einen Tag ans Handy halten.</p>
-</div>
-<p class="hinweis">Dieses Handy ist noch nicht eingerichtet. Der Einladungslink kommt
-  vom Büro — einmal antippen genügt.</p>
+  <p class="gedaempft" style="margin-top:6px">Lagerverwaltung</p>
+</article>
+${notiz('hinweis', 'Dieses Handy ist noch nicht eingerichtet',
+        ' Der Einladungslink kommt vom Büro — einmal antippen genügt.')}
 <a class="knopf knopf-still" href="/buero">Büro</a>`,
       { titel: c.env.FIRMA, kopf: kopf('Lager') }));
   }
@@ -52,16 +52,22 @@ app.get('/', async (c) => {
   const lager = await hauptlager(c.env);
   return html(seite(`
 <h1>Hallo ${esc(ma.name)}</h1>
-<p style="color:#5a6472;margin-bottom:20px">Tag ans Handy halten, um zu buchen.</p>
+<p class="gedaempft">Tag ans Handy halten, um zu buchen.</p>
 <form method="get" action="/t">
-  <div class="feld"><label for="code">Oder Code vom Aufkleber eintippen</label>
-    <input type="text" id="code" name="code" autocapitalize="characters"
-      autocomplete="off" placeholder="z. B. K7F2QX"></div>
+  <div class="tafel">
+    <div class="feld" style="margin-bottom:0">
+      <label for="code">Oder Code vom Aufkleber eintippen</label>
+      <input type="text" id="code" name="code" autocapitalize="characters"
+        autocomplete="off" placeholder="z. B. K7F2QX"></div>
+  </div>
   <button class="knopf knopf-lager" type="submit">Öffnen</button>
 </form>
-<a class="knopf knopf-zweit" href="/scan">Scan-Station (Android)</a>
-${lager ? `<p class="fuss">Hauptlager: ${esc(lager.name)}</p>` : ''}`,
-    { titel: 'Lager', kopf: kopf('Lager'), banner: sitzungsBanner(sitzung) }));
+<a class="knopf knopf-zweit" href="/inventur">Inventur</a>
+<a class="knopf knopf-still" href="/scan">Scan-Station (nur Android)</a>
+<p class="fussnote" id="wgl-wartestand" hidden></p>
+${lager ? `<p class="fussnote">Hauptlager: ${esc(lager.name)}</p>` : ''}`,
+    { titel: 'Lager', kopf: kopf('Lager'), banner: sitzungsBanner(sitzung),
+      scripte: '<script src="/app.js"></script>' }));
 });
 
 app.get('/t', (c) => {
@@ -82,9 +88,9 @@ app.get('/t/:code', async (c) => {
     if (!ma) return c.redirect('/');
     await sitzungSetzen(c.env, ma.id, ziel.standort.id, ziel.standort.name);
     return html(seite(`
-<div class="erfolg"><strong>Du bist auf ${esc(ziel.standort.name)}.</strong><br>
-  Die nächsten 4 Stunden geht jede Einheit mit einem Tap hierher.</div>
-<p>Jetzt die Einheiten antippen.</p>
+${notiz('erfolg', `Du bist auf ${ziel.standort.name}`,
+      ' Die nächsten 4 Stunden geht jede Einheit mit einem Tap hierher.')}
+<p class="gedaempft">Jetzt die Einheiten antippen.</p>
 <a class="knopf knopf-still" href="/">Übersicht</a>`, {
       titel: ziel.standort.name,
       kopf: kopf('Lager'),
@@ -243,9 +249,9 @@ app.get('/einladung/:code', async (c) => {
   ).bind(einladung).first<{ id: number; name: string }>();
 
   if (!ma) {
-    return html(seite(`
-<div class="fehler"><strong>Link nicht gültig.</strong><br>
-  Entweder schon benutzt oder abgelaufen. Bitte im Büro einen neuen anfordern.</div>`,
+    return html(seite(
+      notiz('fehler', 'Link nicht gültig',
+        ' Entweder schon benutzt oder abgelaufen. Bitte im Büro einen neuen anfordern.'),
       { titel: 'Einladung', kopf: kopf('Lager') }), 410);
   }
 
@@ -255,9 +261,9 @@ app.get('/einladung/:code', async (c) => {
   ).bind(await sha256(token), ma.id).run();
 
   return html(seite(`
-<div class="erfolg"><strong>Fertig, ${esc(ma.name)}.</strong><br>
-  Dieses Handy ist jetzt eingerichtet. Kein Passwort, kein Login — einfach Tags antippen.</div>
-<a class="knopf knopf-haupt" href="/">Los geht's</a>`,
+${notiz('erfolg', `Fertig, ${ma.name}`,
+    ' Dieses Handy ist jetzt eingerichtet. Kein Passwort, kein Login — einfach Tags antippen.')}
+<a class="knopf knopf-haupt" href="/">Los geht’s</a>`,
     { titel: 'Eingerichtet', kopf: kopf('Lager') }),
     200, { 'Set-Cookie': cookieSetzen(COOKIE_MITARBEITER, token, 60 * 60 * 24 * 365 * 2) });
 });
@@ -478,12 +484,16 @@ app.get('/buero', async (c) => {
        FROM einheit e JOIN standort s ON s.id = e.standort_id WHERE e.aktiv = 1`,
   ).first<{ gesamt: number; im_lager: number; auf_baustellen: number }>();
   const standorte = await standorteAktiv(c.env);
+  const offene = await c.env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM meldung WHERE erledigt = 0`,
+  ).first<{ n: number }>();
   return B.uebersicht({
     einheiten: zahlen?.gesamt ?? 0,
     imLager: zahlen?.im_lager ?? 0,
     aufBaustellen: zahlen?.auf_baustellen ?? 0,
     ueberfaellig: await ueberfaellig(c.env),
     standorte: standorte.length,
+    offeneMeldungen: offene?.n ?? 0,
   });
 });
 
@@ -771,7 +781,8 @@ function zahlOderNull(wert: unknown): number | null {
 }
 
 app.notFound(() => html(seite(
-  `<div class="fehler">Seite nicht gefunden.</div><a class="knopf knopf-still" href="/">Übersicht</a>`,
+  notiz('fehler', 'Seite nicht gefunden') +
+  '<a class="knopf knopf-still" href="/">Übersicht</a>',
   { titel: 'Nicht gefunden', kopf: kopf('Lager') }), 404));
 
 /* ====================================================== Wochenlauf === */
