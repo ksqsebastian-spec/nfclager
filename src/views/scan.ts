@@ -9,8 +9,10 @@ export interface Aktion {
   unter?: string;
   /** Direktbuchung per Formular ... */
   zielId?: number;
-  /** ... oder Weiterleitung auf die Standortauswahl. */
+  /** ... Weiterleitung auf die Standortauswahl ... */
   href?: string;
+  /** ... oder ein anderer Endpunkt, etwa die Inventur. */
+  posten?: { url: string; felder: Record<string, string> };
 }
 
 /**
@@ -74,11 +76,27 @@ function knopf(a: Aktion, code: string): string {
   const klasse = `knopf knopf-${a.art}`;
   const beschriftung = `${esc(a.label)}${a.unter ? `<small>${esc(a.unter)}</small>` : ''}`;
   if (a.href) return `<a class="${klasse}" href="${esc(a.href)}">${beschriftung}</a>`;
-  return `<form method="post" action="/api/buchung">
-    <input type="hidden" name="code" value="${esc(code)}">
-    <input type="hidden" name="ziel" value="${a.zielId}">
+
+  const url = a.posten?.url ?? '/api/buchung';
+  const felder = a.posten?.felder ?? { code, ziel: String(a.zielId) };
+  // data-buchung markiert nur Buchungen — die Warteschlange soll keine
+  // Inventurtreffer aufsammeln, die offline ohnehin sinnlos waeren.
+  const marke = a.posten ? '' : ' data-buchung';
+  const versteckt = Object.entries(felder).map(([n, w]) =>
+    `<input type="hidden" name="${esc(n)}" value="${esc(w)}">`).join('');
+  return `<form method="post" action="${esc(url)}"${marke}>${versteckt}
     <button class="${klasse}" type="submit">${beschriftung}</button>
   </form>`;
+}
+
+/** Waehrend einer laufenden Inventur ersetzt dieser Knopf das Buchen. */
+export function inventurAktion(inventurId: number, code: string, standort: string): Aktion {
+  return {
+    art: 'haupt',
+    label: '✓ Hier gefunden',
+    unter: `Inventur ${standort}`,
+    posten: { url: '/api/inventur/treffer', felder: { code, inventur: String(inventurId) } },
+  };
 }
 
 export function sitzungsBanner(sitzung: Sitzung | null): string {
@@ -127,12 +145,15 @@ ${meldung}
 </div>
 ${o.aktionen.map((a) => knopf(a, e.code)).join('')}
 ${storno}
+<a class="knopf knopf-still" href="/t/${esc(e.code)}/melden">Schaden melden</a>
+<p class="fuss" id="wgl-wartestand" hidden></p>
 <p class="fuss"><a href="/">Übersicht</a></p>`;
 
   return html(seite(inhalt, {
     titel: `${e.code} · ${e.bezeichnung}`,
     kopf: kopf('Lager', { href: '/', text: 'Übersicht' }),
     banner: sitzungsBanner(o.sitzung),
+    scripte: '<script src="/app.js"></script>',
   }));
 }
 
@@ -155,7 +176,7 @@ export function wohinSeite(o: {
           ? `${Math.round(s.entfernungKm * 1000)} m entfernt`
           : `${s.entfernungKm.toFixed(1).replace('.', ',')} km entfernt`}</span>`
       : s.adresse ? `<span class="entf">${esc(s.adresse)}</span>` : '';
-    return `<li><form method="post" action="/api/buchung">
+    return `<li><form method="post" action="/api/buchung" data-buchung>
       <input type="hidden" name="code" value="${esc(o.code)}">
       <input type="hidden" name="ziel" value="${s.id}">
       <button class="knopf ${s.typ === 'lager' ? 'knopf-lager' : 'knopf-zweit'}" type="submit">
@@ -180,13 +201,14 @@ navigator.geolocation && navigator.geolocation.getCurrentPosition(function(p){
 ${o.standorte.length === 0
     ? '<p class="leer">Keine aktiven Standorte angelegt.</p>'
     : `<ul class="liste">${eintraege}</ul>`}
-<a class="knopf knopf-still" href="/t/${esc(o.code)}">Abbrechen</a>`;
+<a class="knopf knopf-still" href="/t/${esc(o.code)}">Abbrechen</a>
+<p class="fuss" id="wgl-wartestand" hidden></p>`;
 
   return html(seite(inhalt, {
     titel: 'Wohin?',
     kopf: kopf('Ziel wählen', { href: `/t/${o.code}`, text: 'Zurück' }),
     banner: sitzungsBanner(o.sitzung),
-    scripte: skript,
+    scripte: `<script src="/app.js"></script>${skript}`,
   }));
 }
 
@@ -219,4 +241,31 @@ export function unbekannterTag(code: string): Response {
 </form>
 <a class="knopf knopf-still" href="/">Übersicht</a>`;
   return html(seite(inhalt, { titel: 'Unbekannter Tag', kopf: kopf('Lager') }), 404);
+}
+
+/** Schaden oder Zustand melden — bewusst nur vier Knoepfe plus optional ein Foto. */
+export function meldenSeite(e: EinheitMitStandort, fotoMoeglich: boolean): Response {
+  const inhalt = `
+<h1>Melden</h1>
+<p style="color:#5a6472;margin-bottom:20px">${esc(e.code)} · ${esc(e.bezeichnung)}</p>
+<form method="post" action="/t/${esc(e.code)}/melden" enctype="multipart/form-data">
+  <div class="feld"><label for="art">Was ist los?</label>
+    <select id="art" name="art">
+      <option value="beschaedigt">Beschädigt</option>
+      <option value="reparatur">Muss in die Reparatur</option>
+      <option value="hinweis">Nur ein Hinweis</option>
+      <option value="ok">Wieder in Ordnung</option>
+    </select></div>
+  <div class="feld"><label for="text">Kurz was (optional)</label>
+    <input type="text" id="text" name="text" placeholder="z. B. Belag verbogen"></div>
+  ${fotoMoeglich ? `<div class="feld"><label for="foto">Foto (optional)</label>
+    <input type="file" id="foto" name="foto" accept="image/*" capture="environment"
+      style="min-height:52px;padding:10px"></div>` : ''}
+  <button class="knopf knopf-haupt" type="submit">Melden</button>
+</form>
+<a class="knopf knopf-still" href="/t/${esc(e.code)}">Abbrechen</a>`;
+  return html(seite(inhalt, {
+    titel: 'Melden',
+    kopf: kopf('Melden', { href: `/t/${e.code}`, text: 'Zurück' }),
+  }));
 }

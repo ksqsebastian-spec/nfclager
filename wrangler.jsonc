@@ -19,6 +19,16 @@
       "id": "PLACEHOLDER-nach-wrangler-kv-create-eintragen"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "FOTOS",
+      "bucket_name": "nfclager-fotos"
+    }
+  ],
+  "triggers": {
+    // Montags 6 Uhr UTC — die Überfällig-Liste liegt vor der Frühbesprechung vor.
+    "crons": ["0 6 * * 1"]
+  },
   "vars": {
     "FIRMA": "J. Werner Gerüstbau GmbH & Co. KG",
     "FIRMA_TELEFON": "040 357032-70"

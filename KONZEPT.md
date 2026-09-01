@@ -317,23 +317,28 @@ Rahmen 2 m sind frei"* und bekommt die Antwort, ohne irgendeine Oberfläche zu �
 
 ## 8. Vorgehen
 
-**Phase 1 — nutzbar (ca. 2 Wochen)**
+**Phase 1 — nutzbar** ✅ gebaut
 Tag-Schema und URL-Struktur · Scan-Seite mit zwei Knöpfen · Standortliste nach Entfernung ·
-Bestandsübersicht fürs Büro · MCP lesend · 20 Muster-Tags an einer Kolonne testen ·
-ein Android-Gerät als Scan-Station im Lager (Weg B)
+Bestandsübersicht fürs Büro · MCP lesend · Scan-Station für Android (Weg B)
 
-**Phase 2 — schnell**
-Baustellen-Session-Tag · Offline-Queue · Inhaltsverwaltung für Träger · Überfällig-Liste
-wöchentlich · MCP schreibend
+**Phase 2 — schnell** ✅ gebaut
+Baustellen-Session-Tag · Offline-Warteschlange · Inhaltsverwaltung für Träger ·
+wöchentlicher Überfällig-Lauf · MCP schreibend
 
-**Phase 2a — nur falls der Praxistest es verlangt**
-Capacitor-Wrapper (Weg C) für die iPhone-Kolonnen. Entscheidung erst nach Phase 1, auf Basis
-echter Rückmeldung statt Vermutung. Zusatzaufwand: Apple Developer Program und Verteilweg
-klären — das ist der eigentliche Posten, nicht der Code.
+**Phase 3 — auswertbar** ✅ gebaut
+Vorhaltungsauswertung für die Abrechnung · Inventurmodus · Foto bei der Schadensmeldung ·
+Verlustliste je Baustelle
 
-**Phase 3 — auswertbar**
-Vorhaltungsauswertung für die Abrechnung · Inventurmodus · Foto beim Rückscan
-(Schadensdoku) · Verlustquote je Baustelle und Kolonne
+**Offen — bewusst nicht gebaut**
+- *Capacitor-Wrapper (Weg C)* für die iPhone-Kolonnen. Entscheidung erst nach dem
+  Praxistest, auf Basis echter Rückmeldung statt Vermutung. Der Aufwand liegt im
+  Apple Developer Program und im Verteilweg, nicht im Code.
+- *Ersterfassung*: 20 Muster-Tags an einer Kolonne testen, dann Lager abtaggen.
+  Das ist Handarbeit vor Ort, keine Software.
+- *E-Mail für den Wochenlauf*: der Lauf schreibt seinen Stand in die Datenbank und
+  kann einen Webhook (Slack/Teams) bedienen. Echte E-Mail bräuchte einen Versanddienst;
+  ohne einen solchen wäre die Zustellung nicht verlässlich, und eine Meldung, die
+  vielleicht ankommt, ist schlimmer als keine.
 
 Wichtig für Phase 1: **eine Kolonne, echte Baustelle, zwei Wochen.** Wenn der Ablauf da nicht
 von selbst läuft, hilft kein zusätzliches Feature — dann stimmt der Ablauf nicht, und das

@@ -7,16 +7,33 @@ Bestand, Vorhaltezeiten und überfälliges Material im Chat abfragbar.
 Konzept und Begründung der Architekturentscheidungen: **[KONZEPT.md](KONZEPT.md)**.
 Diese Datei beschreibt nur Betrieb und Inbetriebnahme.
 
-## Was steht (Phase 1)
+## Was steht
 
-- **Scan-Seite** `/t/:code` — zwei Knöpfe, ein Tap gebucht, 30 Sekunden Rückgängig
+**Auf der Baustelle**
+- **Scan-Seite** `/t/:code` — zwei Knöpfe, ein Tap gebucht, Rückgängig binnen 15 Minuten
 - **Baustellen-Sitzung** — Standort-Tag antippen, danach geht jede Einheit mit einem Tap dorthin (4 Std)
 - **Standortauswahl nach Entfernung** — die Baustelle, auf der man steht, steht oben
+- **Offline** — ohne Netz öffnet die Hülle aus dem Cache, zeigt die Einheit aus dem
+  letzten Abzug und legt die Buchung in eine Warteschlange. Übertragung, sobald
+  wieder Empfang da ist — mit dem Zeitpunkt des Scans, nicht dem der Übertragung
+- **Schaden melden** `/t/:code/melden` — vier Knöpfe, optional Foto, setzt den Zustand
+- **Inventur** `/inventur` — Standort abtappen, live sehen was fehlt. Einheiten, die
+  laut System woanders stehen, werden automatisch hierher gebucht
 - **Scan-Station** `/scan` — Web-NFC-Dauerscan für Android (Weg B aus dem Konzept)
-- **Büro** `/buero` — Bestand, Einheiten, Standorte, Mitarbeiter, Etikettendruck
-- **MCP** `/mcp` — lesend: `bestand`, `einheit`, `baustelle_bestand`, `ueberfaellig`, `suche`
 
-Offen für Phase 2: Offline-Warteschlange, Überfällig-Mail, MCP schreibend.
+**Im Büro** `/buero`
+- Bestand, Einheiten, Standorte, Artikel, Mitarbeiter, Etikettendruck mit QR
+- **Auswertung** — Vorhaltetage je Baustelle, vermuteter Materialverlust
+- **Meldungen** — offene Schäden mit Fotos
+- **Wochenlauf** — montags 6 Uhr UTC; meldet nur, was seit dem letzten Lauf NEU
+  überfällig ist. Optionaler Webhook (`MELDUNG_WEBHOOK`) nach Slack oder Teams
+
+**MCP** `/mcp` — 17 Werkzeuge
+- lesend: `bestand`, `einheit`, `baustelle_bestand`, `ueberfaellig`, `vorhaltung`,
+  `verlust`, `meldungen`, `suche`, `inventur_stand`
+- schreibend: `buchung_anlegen`, `einheit_anlegen`, `inhalt_setzen`,
+  `standort_anlegen`, `standort_beenden`, `tag_zuordnen`, `inventur_start`,
+  `inventur_abschluss`
 
 ## Inbetriebnahme
 
@@ -26,12 +43,14 @@ npm install
 # D1 und KV anlegen, die ausgegebenen IDs in wrangler.jsonc eintragen
 npx wrangler d1 create nfclager
 npx wrangler kv namespace create SESSIONS
+npx wrangler r2 bucket create nfclager-fotos
 
 npx wrangler d1 migrations apply nfclager --remote
 
 # Geheimnisse setzen
 npx wrangler secret put ADMIN_PASSWORT   # Zugang zur Büro-Oberfläche
 npx wrangler secret put MCP_TOKEN        # Bearer-Token für /mcp
+npx wrangler secret put MELDUNG_WEBHOOK  # optional: Slack/Teams für den Wochenlauf
 
 npx wrangler deploy
 ```
@@ -105,9 +124,15 @@ npm run build      # Trockenlauf des Deploys
 | `src/views/scan.ts` | Scan-Seite; `aktionenFuer()` entscheidet über die Knöpfe |
 | `src/views/buero.ts` | Büro-Oberfläche |
 | `src/views/station.ts` | Web-NFC-Dauerscan |
+| `src/views/inventur.ts` | Inventurlauf |
+| `src/views/offline.ts` | Service Worker, Warteschlange, Offline-Hülle |
 | `src/views/druck.ts` | Etikettenbogen |
 | `migrations/` | D1-Schema |
 
 Serverseitig gerendertes HTML, kein Framework im Browser, keine Webfonts. Die
 Scan-Seite liegt unter 10 KB — auf der Baustelle mit einem Balken Empfang ist das
 der Unterschied zwischen benutzbar und nicht benutzbar.
+
+Der Kernablauf (Tag antippen, Knopf drücken, gebucht) läuft als normaler
+Formular-POST **ohne JavaScript**. `app.js` macht ihn nur robust: Warteschlange,
+Offline-Hülle, Schnappschuss. Fällt das Skript aus, bucht die Seite weiterhin.

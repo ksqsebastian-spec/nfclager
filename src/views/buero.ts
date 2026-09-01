@@ -1,7 +1,10 @@
 import { esc, html, kopf, seite } from './layout';
 import { formatMenge, zustandText } from './scan';
 import { seitText } from '../geo';
-import type { BestandZeile, HistorieZeile, UeberfaelligZeile } from '../db';
+import type {
+  BestandZeile, HistorieZeile, MeldungZeile, UeberfaelligZeile,
+  VerlustZeile, VorhaltungZeile,
+} from '../db';
 import type { Artikel, EinheitMitStandort, InhaltZeile, Standort } from '../types';
 
 const NAV = `<p style="margin:0 0 20px;display:flex;flex-wrap:wrap;gap:8px 16px;font-size:16px">
@@ -9,6 +12,9 @@ const NAV = `<p style="margin:0 0 20px;display:flex;flex-wrap:wrap;gap:8px 16px;
   <a href="/buero/bestand">Bestand</a>
   <a href="/buero/einheiten">Einheiten</a>
   <a href="/buero/standorte">Standorte</a>
+  <a href="/buero/artikel">Artikel</a>
+  <a href="/buero/auswertung">Auswertung</a>
+  <a href="/buero/meldungen">Meldungen</a>
   <a href="/buero/mitarbeiter">Mitarbeiter</a>
 </p>`;
 
@@ -296,4 +302,99 @@ export function mitarbeiterSeite(
   <button class="knopf knopf-lager" type="submit">Anlegen und Einladung erzeugen</button>
 </form>`;
   return bueroSeite('Mitarbeiter', inhalt);
+}
+
+export function artikelSeite(artikel: Artikel[]): Response {
+  const zeilen = artikel.map((a) => `<tr>
+    <td>${esc(a.name)}</td><td>${esc(a.kategorie)}</td><td>${esc(a.mengeneinheit)}</td>
+  </tr>`).join('');
+  const inhalt = `
+<h1>Artikel <span style="font-weight:400;color:#5a6472">(${artikel.length})</span></h1>
+<p style="color:#5a6472">Der Materialstamm. Was hier steht, kann als Inhalt einer
+  Gitterbox erfasst werden.</p>
+${artikel.length === 0 ? '<p class="leer">Noch keine Artikel.</p>'
+    : `<div class="tabelle-rahmen"><table>
+        <thead><tr><th>Name</th><th>Kategorie</th><th>Einheit</th></tr></thead>
+        <tbody>${zeilen}</tbody></table></div>`}
+
+<h2>Neuer Artikel</h2>
+<form method="post" action="/buero/artikel">
+  <div class="feld"><label for="an">Name</label>
+    <input type="text" id="an" name="name" required placeholder="z. B. Rahmen 2,00 m"></div>
+  <div class="feld"><label for="ak">Kategorie</label>
+    <input type="text" id="ak" name="kategorie" placeholder="z. B. rahmen"></div>
+  <div class="feld"><label for="am">Mengeneinheit</label>
+    <input type="text" id="am" name="mengeneinheit" value="Stk"></div>
+  <button class="knopf knopf-lager" type="submit">Anlegen</button>
+</form>`;
+  return bueroSeite('Artikel', inhalt);
+}
+
+export function auswertungSeite(
+  vorhaltung: VorhaltungZeile[], verlust: VerlustZeile[], schwelle: number,
+): Response {
+  const vZeilen = vorhaltung.map((v) => `<tr>
+    <td>${esc(v.standort)}${v.aktiv ? '' : ' <span class="pill pill-warn">beendet</span>'}</td>
+    <td class="zahl">${v.einheiten}</td>
+    <td class="zahl">${v.tage_summe}</td>
+    <td class="zahl">${v.tage_max}</td>
+    <td>${esc(v.erste_lieferung?.slice(0, 10) ?? '—')}</td>
+  </tr>`).join('');
+
+  const lZeilen = verlust.map((l) => `<tr>
+    <td><a href="/buero/einheit/${l.einheit_id}">${esc(l.code)}</a><br>
+      <span style="font-size:14px;color:#5a6472">${esc(l.bezeichnung)}</span></td>
+    <td>${esc(l.standort)}${l.standort_beendet
+      ? ' <span class="pill pill-warn">beendet</span>' : ''}</td>
+    <td class="zahl">${l.tage}</td>
+    <td style="font-size:14px">${esc(l.inhalt ?? '—')}</td>
+    <td>${esc(l.zuletzt_von ?? '—')}</td>
+  </tr>`).join('');
+
+  const inhalt = `
+<h1>Auswertung</h1>
+
+<h2>Vorhaltetage je Baustelle</h2>
+<p style="color:#5a6472">Summe über alle Einheiten (Einheitentage) — die Zahl, die bei
+  Streit über die Mietdauer zählt, nicht die Kalenderdauer der Baustelle.</p>
+${vorhaltung.length === 0 ? '<p class="leer">Noch keine Bewegungen auf Baustellen.</p>'
+    : `<div class="tabelle-rahmen"><table>
+        <thead><tr><th>Baustelle</th><th class="zahl">Einheiten</th>
+          <th class="zahl">Einheitentage</th><th class="zahl">längste</th>
+          <th>erste Lieferung</th></tr></thead>
+        <tbody>${vZeilen}</tbody></table></div>`}
+
+<h2>Vermutlicher Verlust <span style="font-weight:400;font-size:16px;color:#5a6472">
+  (ab ${schwelle} Tagen oder auf beendeter Baustelle)</span></h2>
+${verlust.length === 0 ? '<p class="leer">Nichts. Gut.</p>'
+    : `<div class="tabelle-rahmen"><table>
+        <thead><tr><th>Einheit</th><th>Standort</th><th class="zahl">Tage</th>
+          <th>Inhalt</th><th>Zuletzt gebucht</th></tr></thead>
+        <tbody>${lZeilen}</tbody></table></div>`}`;
+  return bueroSeite('Auswertung', inhalt);
+}
+
+export function meldungenSeite(meldungen: MeldungZeile[], alle: boolean): Response {
+  const zeilen = meldungen.map((m) => `<tr>
+    <td>${esc(m.zeit.slice(0, 16))}</td>
+    <td><a href="/buero/einheit/${m.einheit_id}">${esc(m.code)}</a><br>
+      <span style="font-size:14px;color:#5a6472">${esc(m.bezeichnung)}</span></td>
+    <td><span class="pill ${m.art === 'ok' ? 'pill-lager' : 'pill-warn'}">${esc(m.art)}</span></td>
+    <td>${esc(m.text ?? '')}${m.foto_schluessel
+      ? `<br><a href="/foto/${esc(m.foto_schluessel)}">Foto</a>` : ''}</td>
+    <td>${esc(m.wer ?? '—')}</td>
+    <td>${m.erledigt ? '' : `<form method="post" action="/buero/meldung/${m.id}/erledigt">
+      <button class="knopf knopf-still" style="min-height:36px;font-size:14px;margin:0"
+        type="submit">erledigt</button></form>`}</td>
+  </tr>`).join('');
+
+  const inhalt = `
+<h1>Meldungen</h1>
+<p><a href="/buero/meldungen${alle ? '' : '?alle=1'}">${alle
+    ? 'Nur offene zeigen' : 'Auch erledigte zeigen'}</a></p>
+${meldungen.length === 0 ? '<p class="leer">Keine Meldungen.</p>'
+    : `<div class="tabelle-rahmen"><table>
+        <thead><tr><th>Wann</th><th>Einheit</th><th>Art</th><th>Was</th><th>Wer</th><th></th></tr></thead>
+        <tbody>${zeilen}</tbody></table></div>`}`;
+  return bueroSeite('Meldungen', inhalt);
 }

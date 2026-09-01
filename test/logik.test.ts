@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { aktionenFuer } from '../src/views/scan';
+import { nachtragsZeit } from '../src/db';
 import { istTagCode, kanonisch, tagCodeErzeugen, tagCodeNormalisieren } from '../src/codes';
 import { entfernungKm, seitText, tageSeit } from '../src/geo';
 import type { EinheitMitStandort, Standort } from '../src/types';
@@ -114,5 +115,30 @@ describe('Geo und Zeit', () => {
     expect(seitText('2026-09-01 08:00:00', jetzt)).toBe('seit heute');
     expect(seitText('2026-08-31 08:00:00', jetzt)).toBe('seit gestern');
     expect(seitText('2026-07-29 08:00:00', jetzt)).toBe('seit 34 Tagen');
+  });
+});
+
+describe('nachtragsZeit', () => {
+  const jetzt = new Date('2026-09-01T12:00:00Z');
+
+  it('übernimmt einen plausiblen Zeitpunkt aus der Warteschlange', () => {
+    expect(nachtragsZeit('2026-09-01T09:30:00.000Z', jetzt)).toBe('2026-09-01 09:30:00');
+    expect(nachtragsZeit('2026-08-25T07:00:00.000Z', jetzt)).toBe('2026-08-25 07:00:00');
+  });
+
+  it('verwirft Zeitpunkte in der Zukunft', () => {
+    // Sonst stünde eine Einheit "seit -3 Tagen" irgendwo, und jede
+    // Vorhalteauswertung wäre kaputt.
+    expect(nachtragsZeit('2026-09-04T12:00:00.000Z', jetzt)).toBeNull();
+  });
+
+  it('verwirft Zeitpunkte, die zu weit zurückliegen', () => {
+    expect(nachtragsZeit('2026-08-01T12:00:00.000Z', jetzt)).toBeNull();
+  });
+
+  it('verwirft Unsinn und leere Werte', () => {
+    for (const w of [null, undefined, '', 'gestern', '2026-13-45']) {
+      expect(nachtragsZeit(w, jetzt)).toBeNull();
+    }
   });
 });

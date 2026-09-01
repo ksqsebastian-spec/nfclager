@@ -7,6 +7,10 @@ export interface Env {
   ADMIN_PASSWORT?: string;
   /** Bearer-Token fuer /mcp. Als Secret setzen. */
   MCP_TOKEN?: string;
+  /** Fotos zu Schadensmeldungen. Optional — ohne Bucket entfaellt der Foto-Upload. */
+  FOTOS?: R2Bucket;
+  /** Optionaler Webhook (Slack/Teams) fuer den woechentlichen Ueberfaellig-Lauf. */
+  MELDUNG_WEBHOOK?: string;
 }
 
 export type StandortTyp = 'lager' | 'baustelle' | 'unterwegs';
