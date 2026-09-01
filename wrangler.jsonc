@@ -9,14 +9,14 @@
     {
       "binding": "DB",
       "database_name": "nfclager",
-      "database_id": "PLACEHOLDER-nach-wrangler-d1-create-eintragen",
+      "database_id": "251ba542-59a3-4f00-bb03-51cdf6ab1e13",
       "migrations_dir": "migrations"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "SESSIONS",
-      "id": "PLACEHOLDER-nach-wrangler-kv-create-eintragen"
+      "id": "702f1dc480774f34a4cc2dc20e568739"
     }
   ],
   "r2_buckets": [

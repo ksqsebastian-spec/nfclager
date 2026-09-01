@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "nfclager" generated at 2026-09-01T11:10:04.330Z.
