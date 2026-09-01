@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nfclager",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nfclager",
+      "database_id": "PLACEHOLDER-nach-wrangler-d1-create-eintragen",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "SESSIONS",
+      "id": "PLACEHOLDER-nach-wrangler-kv-create-eintragen"
+    }
+  ],
+  "vars": {
+    "FIRMA": "J. Werner Gerüstbau GmbH & Co. KG",
+    "FIRMA_TELEFON": "040 357032-70"
+  }
+}
