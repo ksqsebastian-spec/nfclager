@@ -35,6 +35,37 @@ Diese Datei beschreibt nur Betrieb und Inbetriebnahme.
   `standort_anlegen`, `standort_beenden`, `tag_zuordnen`, `inventur_start`,
   `inventur_abschluss`
 
+## Läuft unter
+
+**https://nfclager.ksqsebastian.workers.dev**
+
+| | |
+|---|---|
+| Büro | `/buero` — Passwort liegt als Worker-Secret `ADMIN_PASSWORT` |
+| MCP | `/mcp` — Bearer-Token als Worker-Secret `MCP_TOKEN` |
+| D1 | `nfclager` · `251ba542-59a3-4f00-bb03-51cdf6ab1e13` |
+| KV | `nfclager-SESSIONS` · `702f1dc480774f34a4cc2dc20e568739` |
+| R2 | `nfclager-fotos` |
+| Cron | montags 6:00 UTC |
+
+Angelegt sind der Artikelstamm (25 gängige Gerüstbau-Positionen), das Lager
+Werner-Siemens-Str. sowie eine **MUSTER-Einheit und eine MUSTER-Baustelle** zum
+Ausprobieren — beide im Büro löschbar, sobald echte Daten drin sind.
+
+### Nächste Schritte
+
+1. `/buero` → **Mitarbeiter** anlegen, Einladungslink per WhatsApp schicken.
+2. `/buero` → **Standorte**: echte Baustellen anlegen (Koordinaten eintragen,
+   dann sortiert die Auswahl nach Nähe). Jede erzeugt automatisch einen Standort-Tag.
+3. `/buero` → **Einheiten**: Gitterboxen und Großteile erfassen, Inhalt eintragen.
+4. `/buero/etiketten` drucken, Chips beschreiben, schreibschützen.
+5. Muster-Einheit und Muster-Baustelle löschen.
+
+> **Zugangsdaten rotieren.** `ADMIN_PASSWORT` und `MCP_TOKEN` wurden beim Deploy
+> erzeugt und liefen dabei durch eine Chat-Sitzung. Vor dem echten Einsatz im
+> Cloudflare-Dashboard unter *Workers → nfclager → Settings → Variables* neu
+> setzen, oder mit `npx wrangler secret put ADMIN_PASSWORT`.
+
 ## Inbetriebnahme
 
 ```bash
@@ -110,7 +141,18 @@ Abschnitt 7.
 npm run typecheck
 npm test
 npm run build      # Trockenlauf des Deploys
+npm run bundle     # deploy/worker.js neu erzeugen
 ```
+
+### Deploy ohne wrangler login
+
+`deploy/worker.js` ist das gebaute Bundle. Es liegt im Repo, weil der Erst-Deploy
+ohne Browser (also ohne `wrangler login`) über die Cloudflare-API lief und das
+Bundle dafür über eine abrufbare URL erreichbar sein musste.
+
+**Vor jedem Deploy auf diesem Weg `npm run bundle` laufen lassen** — sonst wird
+ein veralteter Stand hochgeladen. Wer `wrangler` eingeloggt hat, nimmt einfach
+`npm run deploy` und braucht die Datei gar nicht.
 
 ## Aufbau
 
