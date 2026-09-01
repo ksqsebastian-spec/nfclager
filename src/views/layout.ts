@@ -1,3 +1,5 @@
+import { FAVICON, NAME, zeichen } from './marke';
+
 export function esc(s: unknown): string {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -64,8 +66,9 @@ a:hover{text-decoration:underline}
   position:sticky;top:0;z-index:20}
 .balken .innen{max-width:600px;margin:0 auto;padding:13px 18px;
   display:flex;align-items:center;justify-content:space-between;gap:14px}
-.balken .marke{display:flex;align-items:center;gap:9px;font-weight:650;font-size:16px;color:var(--ink)}
-.balken .marke::before{content:"";width:4px;height:19px;border-radius:2px;background:var(--signal)}
+.balken .marke{display:flex;align-items:center;gap:9px;font-weight:650;font-size:16.5px;
+  letter-spacing:-.015em;color:var(--ink)}
+.zeichen{flex:0 0 auto;display:block}
 .balken a{font-size:15px;color:var(--ink2)}
 
 .sitzung{background:var(--gruen);color:#fff;position:sticky;top:53px;z-index:19}
@@ -151,8 +154,8 @@ form+form,form+.knopf,.knopf+form,.knopf+.knopf{margin-top:11px}
 .leiste{background:var(--flaeche);border-right:1px solid var(--linie);padding:20px 12px 32px;
   position:sticky;top:0;height:100vh;overflow-y:auto}
 .leiste .marke{display:flex;align-items:center;gap:10px;padding:0 10px 18px;
-  font-weight:700;font-size:16px;letter-spacing:-.01em;color:var(--ink)}
-.leiste .marke::before{content:"";width:4px;height:22px;border-radius:2px;background:var(--signal)}
+  font-weight:700;font-size:16.5px;letter-spacing:-.015em;color:var(--ink)}
+.leiste .marke .rolle{font-weight:500;color:var(--ink3)}
 .leiste .gruppe{display:block;margin-top:18px;padding:0 10px 7px;font-size:11.5px;
   font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3)}
 .leiste .gruppe:first-child{margin-top:0}
@@ -291,6 +294,8 @@ export function seite(inhalt: string, opts: SeiteOpts): string {
 <meta name="theme-color" content="#f2f5f8" media="(prefers-color-scheme:light)">
 <meta name="theme-color" content="#0c1117" media="(prefers-color-scheme:dark)">
 <meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="${FAVICON}">
+<link rel="apple-touch-icon" href="${FAVICON}">
 <title>${esc(opts.titel)}</title>
 <style>${CSS}</style>
 </head>
@@ -302,9 +307,9 @@ ${opts.scripte ?? ''}
 }
 
 /** Kopfbalken der Baustellen-Seiten. */
-export function kopf(titel: string, zurueck?: { href: string; text: string }): string {
+export function kopf(titel: string = NAME, zurueck?: { href: string; text: string }): string {
   return `<header class="balken"><div class="innen">
-    <span class="marke">${esc(titel)}</span>
+    <span class="marke">${zeichen(22)}${esc(titel)}</span>
     ${zurueck ? `<a href="${esc(zurueck.href)}">${esc(zurueck.text)}</a>` : ''}
   </div></header>`;
 }

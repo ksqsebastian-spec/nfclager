@@ -232,7 +232,7 @@ ${notiz('hinweis', 'Kein Netz',
 
   return html(seite(inhalt, {
     titel: 'Kein Netz',
-    kopf: kopf('Lager'),
+    kopf: kopf(),
     scripte: skript,
   }));
 }

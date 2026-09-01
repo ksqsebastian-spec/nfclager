@@ -1,6 +1,7 @@
 import {
-  abschnitt, esc, html, kacheln, kopfzeile, notiz, pille, seite, tabelle,
+  abschnitt, esc, html, kacheln, kopf, kopfzeile, notiz, pille, seite, tabelle,
 } from './layout';
+import { NAME, zeichen } from './marke';
 import { formatMenge, zustandText } from './scan';
 import { seitText } from '../geo';
 import type {
@@ -44,7 +45,7 @@ function leiste(pfad: string): string {
   ).join('');
 
   return `<aside class="leiste">
-    <div class="marke">Lager · Büro</div>
+    <div class="marke">${zeichen(22)}${esc(NAME)} <span class="rolle">Büro</span></div>
     <nav class="navi">
       ${punkte}
       <span class="trenner"></span>
@@ -57,14 +58,14 @@ function leiste(pfad: string): string {
 function bueroSeite(titel: string, pfad: string, inhalt: string, status = 200): Response {
   return html(seite(
     `<div class="buero">${leiste(pfad)}<main class="inhalt">${inhalt}</main></div>`,
-    { titel: `${titel} · Lager`, roh: true },
+    { titel: `${titel} · ${NAME}`, roh: true },
   ), status);
 }
 
 export function anmeldung(fehler?: string): Response {
   const inhalt = `
-<h1>Büro</h1>
-<p class="gedaempft">Lagerverwaltung</p>
+<h1>${esc(NAME)} — Büro</h1>
+<p class="gedaempft">Gerüstlager der J. Werner Gerüstbau</p>
 ${fehler ? notiz('fehler', fehler) : ''}
 <form method="post" action="/buero/anmelden">
   <div class="tafel">
@@ -73,7 +74,7 @@ ${fehler ? notiz('fehler', fehler) : ''}
   </div>
   <button class="knopf knopf-lager" type="submit">Anmelden</button>
 </form>`;
-  return html(seite(inhalt, { titel: 'Büro', kopf: '' }), fehler ? 401 : 200);
+  return html(seite(inhalt, { titel: `Büro · ${NAME}`, kopf: kopf() }), fehler ? 401 : 200);
 }
 
 /* ---------------------------------------------------------- Übersicht --- */

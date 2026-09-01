@@ -156,7 +156,7 @@ ${storno}
 
   return html(seite(inhalt, {
     titel: `${e.code} · ${e.bezeichnung}`,
-    kopf: kopf('Lager', { href: '/', text: 'Übersicht' }),
+    kopf: kopf(undefined, { href: '/', text: 'Übersicht' }),
     banner: sitzungsBanner(o.sitzung),
     scripte: '<script src="/app.js"></script>',
   }));
@@ -243,7 +243,7 @@ ${notiz('fehler', 'Unbekannter Tag', `Der Code ${code} ist nicht vergeben.`)}
   <button class="knopf knopf-lager" type="submit">Suchen</button>
 </form>
 <a class="knopf knopf-still" href="/">Übersicht</a>`;
-  return html(seite(inhalt, { titel: 'Unbekannter Tag', kopf: kopf('Lager') }), 404);
+  return html(seite(inhalt, { titel: 'Unbekannter Tag', kopf: kopf() }), 404);
 }
 
 /** Schaden oder Zustand melden — vier Knöpfe plus optional ein Foto. */

@@ -15,12 +15,19 @@ interface Werkzeug {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  /**
+   * Nur lesend. Wird als annotations.readOnlyHint mitgeschickt — Claude
+   * unterscheidet danach, was es ungefragt aufrufen darf, und der MCP-Hub
+   * zählt damit "lesend/schreibend" auf der Übersichtsseite.
+   */
+  readOnly?: boolean;
   ausfuehren: (env: Env, args: Record<string, any>) => Promise<string>;
 }
 
 const WERKZEUGE: Werkzeug[] = [
   {
     name: 'bestand',
+    readOnly: true,
     description:
       'Materialbestand je Artikel und Standort. Zählt Inhalt von Ladungsträgern und ' +
       'separat getaggte Einzelteile zusammen. Ohne Filter kommt der Gesamtbestand über ' +
@@ -61,6 +68,7 @@ const WERKZEUGE: Werkzeug[] = [
   },
   {
     name: 'einheit',
+    readOnly: true,
     description:
       'Alles zu einer Einheit: Bezeichnung, Inhalt, aktueller Standort, wie lange sie ' +
       'dort steht, und die vollständige Bewegungshistorie. Nimmt den sprechenden Code ' +
@@ -94,6 +102,7 @@ const WERKZEUGE: Werkzeug[] = [
   },
   {
     name: 'baustelle_bestand',
+    readOnly: true,
     description:
       'Was steht auf einer Baustelle, seit wann und wie viele Vorhaltetage sind ' +
       'aufgelaufen. Grundlage für die Frage "können wir das Gerüst abrechnen" und für ' +
@@ -128,6 +137,7 @@ const WERKZEUGE: Werkzeug[] = [
   },
   {
     name: 'ueberfaellig',
+    readOnly: true,
     description:
       'Material, das zu lange draußen steht — der eigentliche Hebel gegen Materialverlust. ' +
       'Liefert zwei Fälle: länger als die Schwelle auf einer Baustelle, und Material auf ' +
@@ -160,6 +170,7 @@ const WERKZEUGE: Werkzeug[] = [
   },
   {
     name: 'suche',
+    readOnly: true,
     description:
       'Freitextsuche über Einheiten, Standorte und Artikel. Nützlich, wenn nur ein ' +
       'Bruchstück bekannt ist — "Elbchaussee", "Treppenturm", "GB-04".',
@@ -177,6 +188,7 @@ const WERKZEUGE: Werkzeug[] = [
 
   {
     name: 'vorhaltung',
+    readOnly: true,
     description:
       'Vorhaltetage je Baustelle — Grundlage für die Abrechnung der Mietdauer. ' +
       '"Einheitentage" ist die Summe über alle Einheiten (3 Gitterboxen × 67 Tage = 201), ' +
@@ -205,6 +217,7 @@ const WERKZEUGE: Werkzeug[] = [
   },
   {
     name: 'verlust',
+    readOnly: true,
     description:
       'Material, das als verloren gelten muss: auf abgeschlossener Baustelle oder länger ' +
       'als die Schwelle ohne jede Bewegung. Anders als "ueberfaellig" mit Inhaltsangabe — ' +
@@ -228,6 +241,7 @@ const WERKZEUGE: Werkzeug[] = [
   },
   {
     name: 'meldungen',
+    readOnly: true,
     description: 'Schadens- und Zustandsmeldungen von der Baustelle. Standard: nur offene.',
     inputSchema: {
       type: 'object',
@@ -439,6 +453,7 @@ const WERKZEUGE: Werkzeug[] = [
   },
   {
     name: 'inventur_stand',
+    readOnly: true,
     description: 'Zeigt Fortschritt und Fehlliste eines Inventurlaufs.',
     inputSchema: {
       type: 'object',
@@ -506,6 +521,31 @@ async function einheitAufloesen(env: Env, code: string) {
   return tag ? einheitLesen(env, tag.ziel_id) : null;
 }
 
+/* --------------------------------------------------------- Katalog --- */
+
+export function werkzeugliste() {
+  return WERKZEUGE.map(({ name, description, inputSchema, readOnly }) => ({
+    name,
+    description,
+    inputSchema,
+    annotations: { readOnlyHint: Boolean(readOnly) },
+  }));
+}
+
+/**
+ * Öffentlicher Katalog für den MCP-Hub.
+ *
+ * Der Hub holt die Tool-Liste ohne Anmeldung — über /mcp ginge das nicht, das
+ * verlangt den Bearer-Token. Beschreibungen der Werkzeuge sind ohnehin nichts
+ * Vertrauliches; die Daten dahinter bleiben geschützt.
+ */
+export function toolsJson(): Response {
+  return Response.json(
+    { server: { name: 'nfclager', version: VERSION }, tools: werkzeugliste() },
+    { headers: { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' } },
+  );
+}
+
 /* -------------------------------------------------------- JSON-RPC --- */
 
 function ergebnis(id: unknown, result: unknown) {
@@ -567,10 +607,7 @@ export async function mcpBehandeln(req: Request, env: Env): Promise<Response> {
         return Response.json(ergebnis(id, {}));
 
       case 'tools/list':
-        return Response.json(ergebnis(id, {
-          tools: WERKZEUGE.map(({ name, description, inputSchema }) =>
-            ({ name, description, inputSchema })),
-        }));
+        return Response.json(ergebnis(id, { tools: werkzeugliste() }));
 
       case 'tools/call': {
         const werkzeug = WERKZEUGE.find((w) => w.name === params?.name);

@@ -14,7 +14,7 @@ import {
   tagCodeNormalisieren,
 } from './codes';
 import { entfernungKm } from './geo';
-import { mcpBehandeln } from './mcp';
+import { mcpBehandeln, toolsJson } from './mcp';
 import { esc, html, kopf, notiz, seite } from './views/layout';
 import {
   aktionenFuer, einheitSeite, fremdSeite, inventurAktion, meldenSeite, sitzungsBanner,
@@ -45,7 +45,7 @@ app.get('/', async (c) => {
 ${notiz('hinweis', 'Dieses Handy ist noch nicht eingerichtet',
         ' Der Einladungslink kommt vom Büro — einmal antippen genügt.')}
 <a class="knopf knopf-still" href="/buero">Büro</a>`,
-      { titel: c.env.FIRMA, kopf: kopf('Lager') }));
+      { titel: c.env.FIRMA, kopf: kopf() }));
   }
 
   const sitzung = await sitzungLesen(c.env, ma.id);
@@ -66,7 +66,7 @@ ${notiz('hinweis', 'Dieses Handy ist noch nicht eingerichtet',
 <a class="knopf knopf-still" href="/scan">Scan-Station (nur Android)</a>
 <p class="fussnote" id="wgl-wartestand" hidden></p>
 ${lager ? `<p class="fussnote">Hauptlager: ${esc(lager.name)}</p>` : ''}`,
-    { titel: 'Lager', kopf: kopf('Lager'), banner: sitzungsBanner(sitzung),
+    { titel: 'Lager', kopf: kopf(), banner: sitzungsBanner(sitzung),
       scripte: '<script src="/app.js"></script>' }));
 });
 
@@ -93,7 +93,7 @@ ${notiz('erfolg', `Du bist auf ${ziel.standort.name}`,
 <p class="gedaempft">Jetzt die Einheiten antippen.</p>
 <a class="knopf knopf-still" href="/">Übersicht</a>`, {
       titel: ziel.standort.name,
-      kopf: kopf('Lager'),
+      kopf: kopf(),
       banner: sitzungsBanner(await sitzungLesen(c.env, ma.id)),
     }));
   }
@@ -252,7 +252,7 @@ app.get('/einladung/:code', async (c) => {
     return html(seite(
       notiz('fehler', 'Link nicht gültig',
         ' Entweder schon benutzt oder abgelaufen. Bitte im Büro einen neuen anfordern.'),
-      { titel: 'Einladung', kopf: kopf('Lager') }), 410);
+      { titel: 'Einladung', kopf: kopf() }), 410);
   }
 
   const token = geraetetokenErzeugen();
@@ -264,7 +264,7 @@ app.get('/einladung/:code', async (c) => {
 ${notiz('erfolg', `Fertig, ${ma.name}`,
     ' Dieses Handy ist jetzt eingerichtet. Kein Passwort, kein Login — einfach Tags antippen.')}
 <a class="knopf knopf-haupt" href="/">Los geht’s</a>`,
-    { titel: 'Eingerichtet', kopf: kopf('Lager') }),
+    { titel: 'Eingerichtet', kopf: kopf() }),
     200, { 'Set-Cookie': cookieSetzen(COOKIE_MITARBEITER, token, 60 * 60 * 24 * 365 * 2) });
 });
 
@@ -465,6 +465,7 @@ app.get('/api/schnappschuss', async (c) => {
 /* ================================================================ MCP === */
 
 app.post('/mcp', (c) => mcpBehandeln(c.req.raw, c.env));
+app.get('/tools.json', () => toolsJson());
 app.get('/mcp', () => new Response('MCP-Endpunkt. Bitte POST mit JSON-RPC.', { status: 405 }));
 
 /* =============================================================== Büro === */
@@ -783,7 +784,7 @@ function zahlOderNull(wert: unknown): number | null {
 app.notFound(() => html(seite(
   notiz('fehler', 'Seite nicht gefunden') +
   '<a class="knopf knopf-still" href="/">Übersicht</a>',
-  { titel: 'Nicht gefunden', kopf: kopf('Lager') }), 404));
+  { titel: 'Nicht gefunden', kopf: kopf() }), 404));
 
 /* ====================================================== Wochenlauf === */
 
